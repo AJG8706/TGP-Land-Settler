@@ -10,13 +10,30 @@ export const Toolbar = () => {
   const gridVisible = useLandStore((state) => state.gridVisible);
   const snapToGrid = useLandStore((state) => state.snapToGrid);
   const placedItems = useLandStore((state) => state.placedItems);
+  const selectedItemId = useLandStore((state) => state.selectedItemId);
+  const cameraAngle = useLandStore((state) => state.cameraAngle);
 
   const toggleGrid = useLandStore((state) => state.toggleGrid);
   const toggleSnapToGrid = useLandStore((state) => state.toggleSnapToGrid);
+  const setCameraAngle = useLandStore((state) => state.setCameraAngle);
+  const updatePlacedItem = useLandStore((state) => state.updatePlacedItem);
   const saveLayout = useLandStore((state) => state.saveLayout);
   const exportLayout = useLandStore((state) => state.exportLayout);
   const importLayout = useLandStore((state) => state.importLayout);
   const clearPlacedItems = useLandStore((state) => state.clearPlacedItems);
+
+  const handleRotate = () => {
+    if (!selectedItemId) return;
+    const item = placedItems.find((i) => i.id === selectedItemId);
+    if (!item) return;
+
+    updatePlacedItem(selectedItemId, {
+      rotation: {
+        ...item.rotation,
+        y: item.rotation.y + Math.PI / 2,
+      },
+    });
+  };
 
   const handleSave = () => {
     if (layoutName.trim()) {
@@ -61,6 +78,31 @@ export const Toolbar = () => {
     <>
       <div className="toolbar">
         <div className="toolbar-section">
+          <h3>Camera Angle</h3>
+          <button
+            className={`toolbar-btn ${cameraAngle === 10 ? 'active' : ''}`}
+            onClick={() => setCameraAngle(10)}
+            title="Low angle view (10°)"
+          >
+            📷 10°
+          </button>
+          <button
+            className={`toolbar-btn ${cameraAngle === 30 ? 'active' : ''}`}
+            onClick={() => setCameraAngle(30)}
+            title="Medium angle view (30°)"
+          >
+            📷 30°
+          </button>
+          <button
+            className={`toolbar-btn ${cameraAngle === 45 ? 'active' : ''}`}
+            onClick={() => setCameraAngle(45)}
+            title="High angle view (45°)"
+          >
+            📷 45°
+          </button>
+        </div>
+
+        <div className="toolbar-section">
           <h3>View</h3>
           <button
             className={`toolbar-btn ${gridVisible ? 'active' : ''}`}
@@ -75,6 +117,18 @@ export const Toolbar = () => {
             title="Toggle snap to grid"
           >
             🧲 Snap: {snapToGrid ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        <div className="toolbar-section">
+          <h3>Item Control</h3>
+          <button
+            className="toolbar-btn"
+            onClick={handleRotate}
+            disabled={!selectedItemId}
+            title="Rotate selected item 90°"
+          >
+            🔄 Rotate
           </button>
         </div>
 

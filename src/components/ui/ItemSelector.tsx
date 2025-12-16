@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLandStore } from '../../store/useLandStore';
-import { getItemsByCategory } from '../../data/items';
+import { getItemsByCategory, getItemDefinition } from '../../data/items';
+import { generateId } from '../../utils/helpers';
 import type { ItemType, ItemSize } from '../../types';
 import './ItemSelector.css';
 
@@ -15,9 +16,26 @@ export const ItemSelector = () => {
 
   const categories = ['structures', 'landscaping', 'infrastructure'];
 
+  const addPlacedItem = useLandStore((state) => state.addPlacedItem);
+  const setSelectedItemId = useLandStore((state) => state.setSelectedItemId);
+
   const handleItemSelect = (type: ItemType) => {
-    setSelectedItemType(type);
-    setSelectedSizeStore(selectedSize);
+    const definition = getItemDefinition(type);
+    if (!definition) return;
+
+    // Create new item at center of map
+    const newItem = {
+      id: generateId(),
+      type: type,
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      size: selectedSize || undefined,
+      color: definition.color,
+    };
+
+    addPlacedItem(newItem);
+    setSelectedItemId(newItem.id);
+    setSelectedItemType(null);
   };
 
   const handleSizeSelect = (size: ItemSize) => {
@@ -105,14 +123,13 @@ export const ItemSelector = () => {
 
       {/* Instructions */}
       <div className="instructions">
-        <h3>Controls:</h3>
+        <h3>How to Use:</h3>
         <ul>
-          <li>Click to select an item</li>
-          <li>Move mouse to position</li>
-          <li>Click to place</li>
-          <li>Press R to rotate</li>
-          <li>Double-click item to delete</li>
-          <li>ESC to cancel</li>
+          <li>Click item to place at center</li>
+          <li>Drag arrows to move</li>
+          <li>Click item to select/deselect</li>
+          <li>Double-click to delete</li>
+          <li>Use camera angles in toolbar</li>
         </ul>
       </div>
     </div>

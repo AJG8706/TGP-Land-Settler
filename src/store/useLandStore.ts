@@ -2,9 +2,14 @@ import { create } from 'zustand';
 import type { AppState, PlacedItem, ItemType, ItemSize, LandLayout } from '../types';
 
 interface LandStore extends AppState {
+  // Selection state
+  selectedItemId: string | null;
+  cameraAngle: 10 | 30 | 45;
+
   // Actions for item placement
   setSelectedItemType: (type: ItemType | null) => void;
   setSelectedSize: (size: ItemSize | null) => void;
+  setSelectedItemId: (id: string | null) => void;
   addPlacedItem: (item: PlacedItem) => void;
   removePlacedItem: (id: string) => void;
   updatePlacedItem: (id: string, updates: Partial<PlacedItem>) => void;
@@ -17,6 +22,9 @@ interface LandStore extends AppState {
   toggleGrid: () => void;
   toggleSnapToGrid: () => void;
 
+  // Actions for camera
+  setCameraAngle: (angle: 10 | 30 | 45) => void;
+
   // Actions for layout management
   saveLayout: (name: string) => void;
   loadLayout: (layout: LandLayout) => void;
@@ -28,6 +36,7 @@ export const useLandStore = create<LandStore>((set, get) => ({
   // Initial state
   selectedItemType: null,
   selectedSize: null,
+  selectedItemId: null,
   placedItems: [],
   isPlacementMode: false,
   currentLayout: null,
@@ -36,6 +45,7 @@ export const useLandStore = create<LandStore>((set, get) => ({
     target: { x: 0, y: 0, z: 0 },
     zoom: 1,
   },
+  cameraAngle: 30,
   gridVisible: true,
   snapToGrid: true,
 
@@ -46,6 +56,10 @@ export const useLandStore = create<LandStore>((set, get) => ({
 
   setSelectedSize: (size) => {
     set({ selectedSize: size });
+  },
+
+  setSelectedItemId: (id) => {
+    set({ selectedItemId: id });
   },
 
   // Item placement actions
@@ -85,6 +99,11 @@ export const useLandStore = create<LandStore>((set, get) => ({
 
   toggleSnapToGrid: () => {
     set((state) => ({ snapToGrid: !state.snapToGrid }));
+  },
+
+  // Camera actions
+  setCameraAngle: (angle) => {
+    set({ cameraAngle: angle });
   },
 
   // Layout management
