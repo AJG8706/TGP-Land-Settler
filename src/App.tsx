@@ -1,6 +1,7 @@
 import { Scene } from './components/canvas/Scene';
 import { ItemSelector } from './components/ui/ItemSelector';
 import { Toolbar } from './components/ui/Toolbar';
+import { AdminPortal } from './components/ui/AdminPortal';
 import './App.css';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
       {/* UI Overlays */}
       <ItemSelector />
       <Toolbar />
+      <AdminPortal />
     </div>
   );
 }

@@ -29,7 +29,13 @@ interface LandStore extends AppState {
 
   // Actions for terrain
   setTerrainHeightMap: (heightMap: number[][]) => void;
-  generateTerrain: (seed?: number) => void;
+  generateTerrain: (
+    seed?: number,
+    scale?: number,
+    octaves?: number,
+    persistence?: number,
+    lacunarity?: number
+  ) => void;
 
   // Actions for layout management
   saveLayout: (name: string) => void;
@@ -118,15 +124,15 @@ export const useLandStore = create<LandStore>((set, get) => ({
     set({ terrainHeightMap: heightMap });
   },
 
-  generateTerrain: (seed) => {
+  generateTerrain: (seed, scale = 10, octaves = 4, persistence = 0.5, lacunarity = 2) => {
     // Generate natural terrain with Perlin noise
     const heightMap = generateTerrainHeightMap(
       50, // width resolution
       50, // height resolution
-      10, // scale for natural features
-      4, // octaves for detail
-      0.5, // persistence
-      2, // lacunarity
+      scale,
+      octaves,
+      persistence,
+      lacunarity,
       seed
     );
 
