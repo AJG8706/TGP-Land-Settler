@@ -4,6 +4,7 @@ import { useThree } from '@react-three/fiber';
 import type { PlacedItem } from '../../types';
 import { useLandStore } from '../../store/useLandStore';
 import { getItemDefinition } from '../../data/items';
+import { getHeightAtPosition } from '../../utils/noise';
 
 interface DraggableItemProps {
   item: PlacedItem;
@@ -21,6 +22,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
   const removePlacedItem = useLandStore((state) => state.removePlacedItem);
   const updatePlacedItem = useLandStore((state) => state.updatePlacedItem);
   const placedItems = useLandStore((state) => state.placedItems);
+  const terrainHeightMap = useLandStore((state) => state.terrainHeightMap);
 
   const isSelected = selectedItemId === item.id;
 
@@ -71,7 +73,21 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
       const intersects = raycaster.intersectObject(terrain, true);
       if (intersects.length > 0) {
         const point = intersects[0].point;
-        const newPos = new Vector3(point.x, point.y, point.z);
+
+        // Get terrain height at this position
+        let terrainHeight = 0;
+        if (terrainHeightMap) {
+          terrainHeight = getHeightAtPosition(
+            terrainHeightMap,
+            point.x,
+            point.z,
+            100, // terrainWidth
+            100, // terrainDepth
+            10   // maxHeight
+          );
+        }
+
+        const newPos = new Vector3(point.x, terrainHeight, point.z);
 
         // Check for overlap
         const overlapping = checkOverlap(newPos);
@@ -82,7 +98,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
           updatePlacedItem(item.id, {
             position: {
               x: newPos.x,
-              y: newPos.y,
+              y: terrainHeight,
               z: newPos.z,
             },
           });
@@ -102,7 +118,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, item.id, updatePlacedItem, camera, scene, gl, placedItems]);
+  }, [isDragging, item.id, updatePlacedItem, camera, scene, gl, placedItems, terrainHeightMap]);
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();

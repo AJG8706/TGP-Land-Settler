@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import type { AppState, PlacedItem, ItemType, ItemSize, LandLayout } from '../types';
+import { generateTerrainHeightMap, smoothHeightMap } from '../utils/noise';
 
 interface LandStore extends AppState {
   // Selection state
   selectedItemId: string | null;
   cameraAngle: 10 | 30 | 45;
+  terrainHeightMap: number[][] | null;
 
   // Actions for item placement
   setSelectedItemType: (type: ItemType | null) => void;
@@ -24,6 +26,10 @@ interface LandStore extends AppState {
 
   // Actions for camera
   setCameraAngle: (angle: 10 | 30 | 45) => void;
+
+  // Actions for terrain
+  setTerrainHeightMap: (heightMap: number[][]) => void;
+  generateTerrain: (seed?: number) => void;
 
   // Actions for layout management
   saveLayout: (name: string) => void;
@@ -48,6 +54,7 @@ export const useLandStore = create<LandStore>((set, get) => ({
   cameraAngle: 30,
   gridVisible: true,
   snapToGrid: true,
+  terrainHeightMap: null,
 
   // Item selection actions
   setSelectedItemType: (type) => {
@@ -106,6 +113,29 @@ export const useLandStore = create<LandStore>((set, get) => ({
     set({ cameraAngle: angle });
   },
 
+  // Terrain actions
+  setTerrainHeightMap: (heightMap) => {
+    set({ terrainHeightMap: heightMap });
+  },
+
+  generateTerrain: (seed) => {
+    // Generate natural terrain with Perlin noise
+    const heightMap = generateTerrainHeightMap(
+      50, // width resolution
+      50, // height resolution
+      10, // scale for natural features
+      4, // octaves for detail
+      0.5, // persistence
+      2, // lacunarity
+      seed
+    );
+
+    // Smooth for natural flow
+    const smoothed = smoothHeightMap(heightMap, 2);
+
+    set({ terrainHeightMap: smoothed });
+  },
+
   // Layout management
   saveLayout: (name) => {
     const state = get();
@@ -117,6 +147,7 @@ export const useLandStore = create<LandStore>((set, get) => ({
       terrain: {
         width: 100,
         depth: 100,
+        heightMap: state.terrainHeightMap || undefined,
       },
       placedItems: state.placedItems,
     };
@@ -133,6 +164,7 @@ export const useLandStore = create<LandStore>((set, get) => ({
     set({
       currentLayout: layout,
       placedItems: layout.placedItems,
+      terrainHeightMap: layout.terrain.heightMap || null,
     });
   },
 
@@ -142,6 +174,11 @@ export const useLandStore = create<LandStore>((set, get) => ({
       version: '1.0',
       layout: state.currentLayout,
       placedItems: state.placedItems,
+      terrain: {
+        width: 100,
+        depth: 100,
+        heightMap: state.terrainHeightMap,
+      },
     }, null, 2);
   },
 
@@ -152,6 +189,7 @@ export const useLandStore = create<LandStore>((set, get) => ({
         set({
           placedItems: parsed.placedItems,
           currentLayout: parsed.layout || null,
+          terrainHeightMap: parsed.terrain?.heightMap || null,
         });
       }
     } catch (error) {

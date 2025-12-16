@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { Grid } from '@react-three/drei';
 import { useLandStore } from '../../store/useLandStore';
 import * as THREE from 'three';
@@ -6,9 +6,19 @@ import * as THREE from 'three';
 export const Terrain = () => {
   const gridVisible = useLandStore((state) => state.gridVisible);
   const meshRef = useRef<THREE.Mesh>(null);
+  const terrainHeightMap = useLandStore((state) => state.terrainHeightMap);
+  const generateTerrain = useLandStore((state) => state.generateTerrain);
+
+  // Generate terrain on mount if not exists
+  useEffect(() => {
+    if (!terrainHeightMap) {
+      generateTerrain();
+    }
+  }, []);
 
   // Create terrain mesh
   const terrainSize = { width: 100, depth: 100 };
+  const maxHeight = 10; // Maximum elevation in units
 
   // Create procedural grass-like texture
   const grassTexture = useMemo(() => {
@@ -73,9 +83,41 @@ export const Terrain = () => {
     return texture;
   }, []);
 
+  // Apply heightmap to terrain geometry
+  useEffect(() => {
+    if (meshRef.current && terrainHeightMap) {
+      const geometry = meshRef.current.geometry as THREE.PlaneGeometry;
+      const positions = geometry.attributes.position;
+
+      const heightMapHeight = terrainHeightMap.length;
+      const heightMapWidth = terrainHeightMap[0]?.length || 0;
+
+      if (heightMapWidth === 0) return;
+
+      // Update vertex positions based on heightmap
+      for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i);
+        const z = positions.getY(i); // Y in plane geometry is Z in world
+
+        // Convert world coordinates to heightmap coordinates
+        const mapX = ((x + terrainSize.width / 2) / terrainSize.width) * heightMapWidth;
+        const mapZ = ((z + terrainSize.depth / 2) / terrainSize.depth) * heightMapHeight;
+
+        const gridX = Math.max(0, Math.min(heightMapWidth - 1, Math.floor(mapX)));
+        const gridZ = Math.max(0, Math.min(heightMapHeight - 1, Math.floor(mapZ)));
+
+        const height = terrainHeightMap[gridZ][gridX] * maxHeight;
+        positions.setZ(i, height);
+      }
+
+      positions.needsUpdate = true;
+      geometry.computeVertexNormals();
+    }
+  }, [terrainHeightMap]);
+
   return (
     <group>
-      {/* Ground plane with grass texture */}
+      {/* Ground plane with grass texture and elevation */}
       <mesh
         ref={meshRef}
         rotation={[-Math.PI / 2, 0, 0]}
