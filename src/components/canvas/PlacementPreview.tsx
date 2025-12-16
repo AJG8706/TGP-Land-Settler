@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect } from 'react';
-import { Mesh, Raycaster, Vector3 } from 'three';
-import { useFrame, useThree } from '@react-three/fiber';
+import { Mesh, Vector2, Vector3 } from 'three';
+import { useThree } from '@react-three/fiber';
 import { useLandStore } from '../../store/useLandStore';
 import { getItemDefinition } from '../../data/items';
 import { snapToGrid, generateId } from '../../utils/helpers';
-import { PlacedItem } from '../../types';
+import type { PlacedItem } from '../../types';
 
 export const PlacementPreview = () => {
   const meshRef = useRef<Mesh>(null);
@@ -36,7 +36,7 @@ export const PlacementPreview = () => {
       const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
       // Update raycaster
-      raycaster.setFromCamera({ x, y }, camera);
+      raycaster.setFromCamera(new Vector2(x, y), camera);
 
       // Check intersection with ground plane
       const intersects = raycaster.intersectObjects(

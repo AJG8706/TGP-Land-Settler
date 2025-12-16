@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLandStore } from '../../store/useLandStore';
-import { ITEM_DEFINITIONS, getItemsByCategory } from '../../data/items';
-import { ItemType, ItemSize } from '../../types';
+import { getItemsByCategory } from '../../data/items';
+import type { ItemType, ItemSize } from '../../types';
 import './ItemSelector.css';
 
 export const ItemSelector = () => {

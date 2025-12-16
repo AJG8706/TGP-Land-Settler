@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Mesh } from 'three';
-import { ThreeEvent } from '@react-three/fiber';
-import { PlacedItem } from '../../types';
+import type { ThreeEvent } from '@react-three/fiber';
+import type { PlacedItem } from '../../types';
 import { useLandStore } from '../../store/useLandStore';
 import { getItemDefinition } from '../../data/items';
 

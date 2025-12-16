@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Grid } from '@react-three/drei';
 import { useLandStore } from '../../store/useLandStore';
 
