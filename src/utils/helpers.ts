@@ -1,4 +1,4 @@
-import { Position } from '../types';
+import type { Position } from '../types';
 
 // Grid size for snapping
 export const GRID_SIZE = 1;

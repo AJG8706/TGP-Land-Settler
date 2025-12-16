@@ -1,4 +1,4 @@
-import { ItemDefinition } from '../types';
+import type { ItemDefinition } from '../types';
 
 // Define all placeable items with their properties
 export const ITEM_DEFINITIONS: ItemDefinition[] = [

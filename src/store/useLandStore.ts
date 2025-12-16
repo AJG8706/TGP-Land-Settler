@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppState, PlacedItem, ItemType, ItemSize, Position, LandLayout } from '../types';
+import type { AppState, PlacedItem, ItemType, ItemSize, LandLayout } from '../types';
 
 interface LandStore extends AppState {
   // Actions for item placement
