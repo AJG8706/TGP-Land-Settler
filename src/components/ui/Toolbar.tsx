@@ -15,7 +15,6 @@ export const Toolbar = () => {
 
   const toggleGrid = useLandStore((state) => state.toggleGrid);
   const toggleSnapToGrid = useLandStore((state) => state.toggleSnapToGrid);
-  const setCameraAngle = useLandStore((state) => state.setCameraAngle);
   const updatePlacedItem = useLandStore((state) => state.updatePlacedItem);
   const saveLayout = useLandStore((state) => state.saveLayout);
   const exportLayout = useLandStore((state) => state.exportLayout);
@@ -30,7 +29,7 @@ export const Toolbar = () => {
     updatePlacedItem(selectedItemId, {
       rotation: {
         ...item.rotation,
-        y: item.rotation.y + Math.PI / 2,
+        y: item.rotation.y + (15 * Math.PI) / 180, // 15 degree increments
       },
     });
   };
@@ -78,32 +77,13 @@ export const Toolbar = () => {
     <>
       <div className="toolbar">
         <div className="toolbar-section">
-          <h3>Camera Angle</h3>
-          <button
-            className={`toolbar-btn ${cameraAngle === 10 ? 'active' : ''}`}
-            onClick={() => setCameraAngle(10)}
-            title="Low angle view (10°)"
-          >
-            📷 10°
-          </button>
-          <button
-            className={`toolbar-btn ${cameraAngle === 30 ? 'active' : ''}`}
-            onClick={() => setCameraAngle(30)}
-            title="Medium angle view (30°)"
-          >
-            📷 30°
-          </button>
-          <button
-            className={`toolbar-btn ${cameraAngle === 45 ? 'active' : ''}`}
-            onClick={() => setCameraAngle(45)}
-            title="High angle view (45°)"
-          >
-            📷 45°
-          </button>
-        </div>
-
-        <div className="toolbar-section">
           <h3>View</h3>
+          <div className="stat-item" style={{ marginBottom: '8px' }}>
+            📷 Camera: <strong>{cameraAngle}°</strong>
+            <div style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>
+              (Use mouse wheel)
+            </div>
+          </div>
           <button
             className={`toolbar-btn ${gridVisible ? 'active' : ''}`}
             onClick={toggleGrid}
