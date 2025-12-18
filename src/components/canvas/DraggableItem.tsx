@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Mesh, Vector3, Raycaster, Vector2 } from 'three';
+import { Mesh, Vector3, Raycaster, Vector2, CircleGeometry } from 'three';
 import { useThree } from '@react-three/fiber';
 import type { PlacedItem } from '../../types';
 import { useLandStore } from '../../store/useLandStore';
@@ -152,17 +152,59 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
     }
   };
 
+  // Create terrain-following pond geometry
+  const createTerrainFollowingPondGeometry = () => {
+    const radius = Math.max(width, depth) / 2;
+    const segments = 32; // Radial segments for smooth circle
+    const rings = 8; // Concentric rings for terrain following
+
+    // Create circle geometry
+    const geometry = new CircleGeometry(radius, segments, rings);
+    const positions = geometry.attributes.position;
+
+    // Adjust each vertex height based on terrain
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i);
+      const z = positions.getY(i); // In CircleGeometry, Y is actually Z in world space
+
+      // Calculate world position
+      const worldX = item.position.x + x;
+      const worldZ = item.position.z + z;
+
+      // Get terrain height at this point
+      let terrainHeight = 0;
+      if (terrainHeightMap) {
+        terrainHeight = getHeightAtPosition(
+          terrainHeightMap,
+          worldX,
+          worldZ,
+          100, // terrainWidth
+          100, // terrainDepth
+          10   // maxHeight
+        );
+      }
+
+      // Set the Z position (which becomes Y in world space when rotated)
+      // Offset by item position Y and add small lift to prevent z-fighting
+      const relativeHeight = terrainHeight - item.position.y + height / 2 + 0.05;
+      positions.setZ(i, relativeHeight);
+    }
+
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+
   // Render different shapes based on item type
   const renderGeometry = () => {
     const itemColor = isOverlapping ? '#FF0000' : color;
     const opacity = isDragging ? 0.7 : 1;
 
-    // Check if it's a pond type
+    // Check if it's a pond type - use terrain-following geometry
     if (item.type.includes('pond')) {
-      const radius = Math.max(width, depth) / 2; // Use the larger dimension for radius
+      const pondGeometry = createTerrainFollowingPondGeometry();
       return (
-        <mesh>
-          <cylinderGeometry args={[radius, radius, height, 32]} />
+        <mesh geometry={pondGeometry} rotation={[-Math.PI / 2, 0, 0]}>
           <meshStandardMaterial color={itemColor} opacity={opacity} transparent={isDragging} />
         </mesh>
       );

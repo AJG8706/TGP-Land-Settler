@@ -26,6 +26,25 @@ export const ItemSelector = () => {
     const definition = getItemDefinition(type);
     if (!definition) return;
 
+    // Check if this item should use placement mode (line drawing or tree groups)
+    const isLineDrawable =
+      definition.type === 'fence' ||
+      definition.type === 'driveway' ||
+      definition.type === 'road' ||
+      definition.type === 'creek' ||
+      definition.type.includes('stream');
+
+    const isTreeGroup =
+      definition.type === 'tree' ||
+      definition.category === 'trees';
+
+    // For line-drawable items and tree groups, enter placement mode
+    if (isLineDrawable || isTreeGroup) {
+      setSelectedItemType(type);
+      return;
+    }
+
+    // For regular items, place immediately at center
     // Get terrain height at center of map
     let terrainHeight = 0;
     if (terrainHeightMap) {
@@ -54,7 +73,6 @@ export const ItemSelector = () => {
 
     addPlacedItem(newItem);
     setSelectedItemId(newItem.id);
-    setSelectedItemType(null);
   };
 
   const handleSizeSelect = (size: ItemSize) => {
@@ -144,12 +162,12 @@ export const ItemSelector = () => {
       <div className="instructions">
         <h3>How to Use:</h3>
         <ul>
-          <li>Click item to place at center</li>
-          <li>Drag arrows to move</li>
+          <li>Trees: Click to place group of 4-5</li>
+          <li>Lines: Click & drag to draw path</li>
+          <li>Others: Click to place at center</li>
           <li>Right-click & drag to rotate</li>
-          <li>Click item to select/deselect</li>
+          <li>Drag item to move it</li>
           <li>Double-click to delete</li>
-          <li>Use camera angles in toolbar</li>
         </ul>
       </div>
     </div>

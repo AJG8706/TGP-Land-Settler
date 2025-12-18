@@ -3,6 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sky, Environment } from '@react-three/drei';
 import { Terrain } from './Terrain';
 import { DraggableItem } from './DraggableItem';
+import { PlacementPreview } from './PlacementPreview';
 import { useLandStore } from '../../store/useLandStore';
 
 // Easing function for smooth transitions
@@ -173,6 +174,9 @@ export const Scene = () => {
         {placedItems.map((item) => (
           <DraggableItem key={item.id} item={item} />
         ))}
+
+        {/* Placement preview for new items */}
+        <PlacementPreview />
 
         {/* Camera controller */}
         <CameraController />
