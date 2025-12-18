@@ -7,13 +7,23 @@ import { snapToGrid, generateId } from '../../utils/helpers';
 import { getHeightAtPosition } from '../../utils/noise';
 import type { PlacedItem } from '../../types';
 
+interface LineSegment {
+  position: Vector3;
+  rotation: number;
+}
+
 export const PlacementPreview = () => {
   const meshRef = useRef<Mesh>(null);
   const [position, setPosition] = useState<Vector3>(new Vector3(0, 0, 0));
   const [isValid, setIsValid] = useState(true);
   const [rotation, setRotation] = useState(0);
 
-  const { camera, raycaster } = useThree();
+  // Line drawing state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState<Vector3 | null>(null);
+  const [lineSegments, setLineSegments] = useState<LineSegment[]>([]);
+
+  const { camera, raycaster, scene } = useThree();
   const selectedItemType = useLandStore((state) => state.selectedItemType);
   const selectedSize = useLandStore((state) => state.selectedSize);
   const isPlacementMode = useLandStore((state) => state.isPlacementMode);
@@ -24,117 +34,269 @@ export const PlacementPreview = () => {
 
   const definition = selectedItemType ? getItemDefinition(selectedItemType) : null;
 
-  // Handle mouse movement to update preview position
+  // Check if current item supports line drawing
+  const isLineDrawableItem = definition && (
+    definition.type === 'fence' ||
+    definition.type === 'driveway' ||
+    definition.type === 'road'
+  );
+
+  // Get terrain height at position
+  const getTerrainHeight = (x: number, z: number): number => {
+    if (!terrainHeightMap) return 0;
+    return getHeightAtPosition(
+      terrainHeightMap,
+      x,
+      z,
+      100, // terrainWidth
+      100, // terrainDepth
+      10   // maxHeight
+    );
+  };
+
+  // Get world position from mouse event
+  const getWorldPosition = (event: MouseEvent): Vector3 | null => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(new Vector2(x, y), camera);
+
+    const terrain = scene.getObjectByName('terrain');
+    if (!terrain) return null;
+
+    const intersects = raycaster.intersectObject(terrain, true);
+    if (intersects.length === 0) return null;
+
+    const point = intersects[0].point;
+    const terrainHeight = getTerrainHeight(point.x, point.z);
+
+    const worldPos = snapEnabled
+      ? snapToGrid({ x: point.x, y: terrainHeight, z: point.z })
+      : { x: point.x, y: terrainHeight, z: point.z };
+
+    return new Vector3(worldPos.x, worldPos.y, worldPos.z);
+  };
+
+  // Calculate line segments between two points
+  const calculateLineSegments = (start: Vector3, end: Vector3): LineSegment[] => {
+    if (!definition) return [];
+
+    const { depth } = definition.defaultDimensions;
+
+    // Use the depth as the segment length (the "long" dimension)
+    const segmentLength = depth;
+
+    // Calculate direction and distance
+    const direction = new Vector3().subVectors(end, start);
+    const distance = direction.length();
+
+    if (distance < segmentLength * 0.5) return [];
+
+    direction.normalize();
+
+    // Calculate rotation angle based on direction
+    const angle = Math.atan2(direction.x, direction.z);
+
+    // Calculate number of segments
+    const numSegments = Math.max(1, Math.floor(distance / segmentLength));
+
+    // Generate segment positions
+    const segments: LineSegment[] = [];
+    for (let i = 0; i < numSegments; i++) {
+      const t = i / numSegments;
+      const segmentPos = new Vector3(
+        start.x + direction.x * distance * t,
+        getTerrainHeight(
+          start.x + direction.x * distance * t,
+          start.z + direction.z * distance * t
+        ),
+        start.z + direction.z * distance * t
+      );
+
+      segments.push({
+        position: segmentPos,
+        rotation: angle,
+      });
+    }
+
+    return segments;
+  };
+
+  // Handle mouse movement
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       if (!isPlacementMode || !definition) return;
 
-      // Calculate mouse position in normalized device coordinates
-      const canvas = document.querySelector('canvas');
-      if (!canvas) return;
+      const worldPos = getWorldPosition(event);
+      if (!worldPos) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      setPosition(worldPos);
+      setIsValid(true);
 
-      // Update raycaster
-      raycaster.setFromCamera(new Vector2(x, y), camera);
-
-      // Check intersection with ground plane
-      const intersects = raycaster.intersectObjects(
-        Array.from(document.querySelectorAll('mesh')).map((el: any) => el)
-      );
-
-      if (intersects.length > 0) {
-        const point = intersects[0].point;
-
-        // Get terrain height at this position
-        let terrainHeight = 0;
-        if (terrainHeightMap) {
-          terrainHeight = getHeightAtPosition(
-            terrainHeightMap,
-            point.x,
-            point.z,
-            100, // terrainWidth
-            100, // terrainDepth
-            10   // maxHeight
-          );
-        }
-
-        const newPos = snapEnabled
-          ? snapToGrid({ x: point.x, y: terrainHeight, z: point.z })
-          : { x: point.x, y: terrainHeight, z: point.z };
-
-        setPosition(new Vector3(newPos.x, newPos.y, newPos.z));
-        setIsValid(true);
+      // Update line segments if dragging
+      if (isDragging && dragStartPos && isLineDrawableItem) {
+        const segments = calculateLineSegments(dragStartPos, worldPos);
+        setLineSegments(segments);
       }
     };
 
-    const handleClick = () => {
-      if (!isPlacementMode || !definition || !isValid) return;
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isPlacementMode, definition, isDragging, dragStartPos, camera, raycaster, scene, terrainHeightMap, snapEnabled, isLineDrawableItem]);
 
-      // Create new placed item
-      const newItem: PlacedItem = {
-        id: generateId(),
-        type: selectedItemType!,
-        position: { x: position.x, y: position.y, z: position.z },
-        rotation: { x: 0, y: rotation, z: 0 },
-        size: selectedSize || undefined,
-        color: definition.color,
-      };
+  // Handle mouse down
+  useEffect(() => {
+    const handleMouseDown = (event: MouseEvent) => {
+      if (!isPlacementMode || !definition || event.button !== 0) return;
 
-      addPlacedItem(newItem);
+      const canvas = document.querySelector('canvas');
+      if (!canvas || event.target !== canvas) return;
+
+      const worldPos = getWorldPosition(event);
+      if (!worldPos) return;
+
+      if (isLineDrawableItem) {
+        // Start line drawing
+        setIsDragging(true);
+        setDragStartPos(worldPos);
+        setLineSegments([]);
+      }
     };
 
+    window.addEventListener('mousedown', handleMouseDown);
+    return () => window.removeEventListener('mousedown', handleMouseDown);
+  }, [isPlacementMode, definition, camera, raycaster, scene, terrainHeightMap, snapEnabled, isLineDrawableItem]);
+
+  // Handle mouse up
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (!isPlacementMode || !definition) return;
+
+      if (isDragging && dragStartPos && isLineDrawableItem) {
+        // Place all line segments
+        if (lineSegments.length > 0) {
+          lineSegments.forEach((segment) => {
+            const newItem: PlacedItem = {
+              id: generateId(),
+              type: selectedItemType!,
+              position: { x: segment.position.x, y: segment.position.y, z: segment.position.z },
+              rotation: { x: 0, y: segment.rotation, z: 0 },
+              size: selectedSize || undefined,
+              color: definition.color,
+            };
+            addPlacedItem(newItem);
+          });
+        }
+
+        // Reset dragging state
+        setIsDragging(false);
+        setDragStartPos(null);
+        setLineSegments([]);
+      } else if (!isLineDrawableItem) {
+        // Single click placement for regular items
+        const newItem: PlacedItem = {
+          id: generateId(),
+          type: selectedItemType!,
+          position: { x: position.x, y: position.y, z: position.z },
+          rotation: { x: 0, y: rotation, z: 0 },
+          size: selectedSize || undefined,
+          color: definition.color,
+        };
+        addPlacedItem(newItem);
+      }
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [
+    isPlacementMode,
+    definition,
+    isDragging,
+    dragStartPos,
+    lineSegments,
+    position,
+    rotation,
+    selectedItemType,
+    selectedSize,
+    addPlacedItem,
+    isLineDrawableItem,
+  ]);
+
+  // Handle keyboard
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isPlacementMode) return;
 
       switch (event.key) {
         case 'r':
         case 'R':
-          // Rotate 90 degrees
-          setRotation((prev) => prev + Math.PI / 2);
+          if (!isLineDrawableItem) {
+            // Rotate 90 degrees
+            setRotation((prev) => prev + Math.PI / 2);
+          }
           break;
         case 'Escape':
           // Cancel placement
           setPlacementMode(false);
+          setIsDragging(false);
+          setDragStartPos(null);
+          setLineSegments([]);
           break;
       }
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('click', handleClick);
     window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('click', handleClick);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [
-    isPlacementMode,
-    definition,
-    isValid,
-    position,
-    rotation,
-    snapEnabled,
-    selectedItemType,
-    selectedSize,
-    camera,
-    raycaster,
-    addPlacedItem,
-    setPlacementMode,
-    terrainHeightMap,
-  ]);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlacementMode, setPlacementMode, isLineDrawableItem]);
 
   if (!isPlacementMode || !definition) return null;
 
   const { width, height, depth } = definition.defaultDimensions;
 
+  // Render line segments preview
+  if (isLineDrawableItem && isDragging && lineSegments.length > 0) {
+    return (
+      <>
+        {lineSegments.map((segment, index) => (
+          <group
+            key={index}
+            position={[segment.position.x, segment.position.y + height / 2, segment.position.z]}
+            rotation={[0, segment.rotation, 0]}
+          >
+            <mesh>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial
+                color={definition.color}
+                opacity={0.6}
+                transparent
+              />
+            </mesh>
+            <mesh>
+              <boxGeometry args={[width + 0.1, height + 0.1, depth + 0.1]} />
+              <meshBasicMaterial color="#FFFFFF" wireframe />
+            </mesh>
+          </group>
+        ))}
+        {/* Show start point */}
+        {dragStartPos && (
+          <mesh position={[dragStartPos.x, dragStartPos.y + 0.5, dragStartPos.z]}>
+            <sphereGeometry args={[0.3, 16, 16]} />
+            <meshBasicMaterial color="#00FF00" />
+          </mesh>
+        )}
+      </>
+    );
+  }
+
+  // Render single item preview
   return (
     <group
       ref={meshRef}
-      position={[position.x, height / 2, position.z]}
+      position={[position.x, position.y + height / 2, position.z]}
       rotation={[0, rotation, 0]}
     >
       <mesh>
