@@ -412,26 +412,26 @@ export const PlacementPreview = () => {
         {treeGroupPreview.map((tree, index) => {
           const scaledHeight = height * tree.heightVariation;
           const scaledWidth = width * tree.heightVariation;
-          const scaledDepth = depth * tree.heightVariation;
 
           return (
             <group
               key={index}
-              position={[tree.position.x, tree.position.y + scaledHeight / 2, tree.position.z]}
+              position={[tree.position.x, tree.position.y, tree.position.z]}
               rotation={[0, Math.random() * Math.PI * 2, 0]}
             >
-              <mesh>
-                <boxGeometry args={[scaledWidth, scaledHeight, scaledDepth]} />
+              {/* Tree trunk */}
+              <mesh position={[0, scaledHeight / 4, 0]}>
+                <cylinderGeometry args={[0.2 * tree.heightVariation, 0.4 * tree.heightVariation, scaledHeight / 2]} />
+                <meshStandardMaterial color="#8B4513" opacity={0.5} transparent />
+              </mesh>
+              {/* Tree foliage */}
+              <mesh position={[0, scaledHeight * 0.65, 0]}>
+                <coneGeometry args={[scaledWidth / 2, scaledHeight / 2, 8]} />
                 <meshStandardMaterial
                   color={definition.color}
                   opacity={0.5}
                   transparent
                 />
-              </mesh>
-              {/* Outline */}
-              <mesh>
-                <boxGeometry args={[scaledWidth + 0.1, scaledHeight + 0.1, scaledDepth + 0.1]} />
-                <meshBasicMaterial color="#FFFFFF" wireframe />
               </mesh>
             </group>
           );
@@ -447,11 +447,17 @@ export const PlacementPreview = () => {
 
   // Render single item preview
   const isPond = selectedItemType?.includes('pond');
+  const isTree = selectedItemType === 'tree' || selectedItemType?.includes('tree');
 
   return (
     <group
       ref={meshRef}
-      position={[position.x, position.y + height / 2, position.z]}
+      position={[
+        position.x,
+        // Trees are built from ground up, other items are centered
+        isTree ? position.y : position.y + height / 2,
+        position.z
+      ]}
       rotation={[0, rotation, 0]}
     >
       {isPond ? (

@@ -270,7 +270,12 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
   return (
     <group
       ref={meshRef}
-      position={[item.position.x, item.position.y + height / 2, item.position.z]}
+      position={[
+        item.position.x,
+        // Trees are built from ground up (y=0), other items are centered at origin
+        item.type === 'tree' || item.type.includes('tree') ? item.position.y : item.position.y + height / 2,
+        item.position.z
+      ]}
       rotation={[item.rotation.x, item.rotation.y, item.rotation.z]}
       onPointerDown={handlePointerDown}
       onDoubleClick={handleDoubleClick}
