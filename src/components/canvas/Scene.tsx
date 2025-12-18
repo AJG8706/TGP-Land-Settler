@@ -89,6 +89,7 @@ const CameraController = () => {
 const GroundClickHandler = () => {
   const { scene, raycaster, camera, mouse } = useThree();
   const setSelectedItemId = useLandStore((state) => state.setSelectedItemId);
+  const placedItems = useLandStore((state) => state.placedItems);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -100,19 +101,34 @@ const GroundClickHandler = () => {
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const terrain = scene.getObjectByName('terrain');
-      if (!terrain) return;
 
-      const intersects = raycaster.intersectObject(terrain, false);
-      if (intersects.length > 0) {
-        // Clicked on terrain, deselect
-        setSelectedItemId(null);
+      // Check if we clicked on any item
+      const allIntersects = raycaster.intersectObjects(scene.children, true);
+      const clickedItem = allIntersects.find((intersect) => {
+        // Check if the intersected object or its parent is an item (not terrain)
+        let obj = intersect.object;
+        while (obj) {
+          if (obj.name && obj.name !== 'terrain') return true;
+          obj = obj.parent as any;
+        }
+        return false;
+      });
+
+      // Only deselect if we clicked terrain and not an item
+      if (!clickedItem) {
+        const terrain = scene.getObjectByName('terrain');
+        if (terrain) {
+          const terrainIntersects = raycaster.intersectObject(terrain, false);
+          if (terrainIntersects.length > 0) {
+            setSelectedItemId(null);
+          }
+        }
       }
     };
 
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
-  }, [scene, raycaster, camera, mouse, setSelectedItemId]);
+  }, [scene, raycaster, camera, mouse, setSelectedItemId, placedItems]);
 
   return null;
 };

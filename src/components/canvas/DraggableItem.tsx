@@ -23,6 +23,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
   const updatePlacedItem = useLandStore((state) => state.updatePlacedItem);
   const placedItems = useLandStore((state) => state.placedItems);
   const terrainHeightMap = useLandStore((state) => state.terrainHeightMap);
+  const setIsDraggingItem = useLandStore((state) => state.setIsDraggingItem);
 
   const isSelected = selectedItemId === item.id;
 
@@ -109,6 +110,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
     const handleMouseUp = () => {
       setIsDragging(false);
       setIsOverlapping(false);
+      setIsDraggingItem(false);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -124,6 +126,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
     e.stopPropagation();
     setSelectedItemId(item.id);
     setIsDragging(true);
+    setIsDraggingItem(true);
 
     const canvas = gl.domElement;
     const rect = canvas.getBoundingClientRect();

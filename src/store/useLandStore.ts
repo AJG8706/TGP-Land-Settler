@@ -7,11 +7,13 @@ interface LandStore extends AppState {
   selectedItemId: string | null;
   cameraAngle: 10 | 30 | 45;
   terrainHeightMap: number[][] | null;
+  isDraggingItem: boolean;
 
   // Actions for item placement
   setSelectedItemType: (type: ItemType | null) => void;
   setSelectedSize: (size: ItemSize | null) => void;
   setSelectedItemId: (id: string | null) => void;
+  setIsDraggingItem: (isDragging: boolean) => void;
   addPlacedItem: (item: PlacedItem) => void;
   removePlacedItem: (id: string) => void;
   updatePlacedItem: (id: string, updates: Partial<PlacedItem>) => void;
@@ -61,6 +63,7 @@ export const useLandStore = create<LandStore>((set, get) => ({
   gridVisible: true,
   snapToGrid: true,
   terrainHeightMap: null,
+  isDraggingItem: false,
 
   // Item selection actions
   setSelectedItemType: (type) => {
@@ -73,6 +76,10 @@ export const useLandStore = create<LandStore>((set, get) => ({
 
   setSelectedItemId: (id) => {
     set({ selectedItemId: id });
+  },
+
+  setIsDraggingItem: (isDragging) => {
+    set({ isDraggingItem: isDragging });
   },
 
   // Item placement actions
