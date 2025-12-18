@@ -1,16 +1,7 @@
 // Core type definitions for TGP Land Settler
 
-export type ItemType =
-  | 'rv'
-  | 'mobile-home-single'
-  | 'mobile-home-double'
-  | 'house-small'
-  | 'house-medium'
-  | 'house-large'
-  | 'tree'
-  | 'fence'
-  | 'culvert'
-  | 'driveway';
+// Using string to allow flexible item types
+export type ItemType = string;
 
 export type ItemSize = 'small' | 'medium' | 'large';
 
@@ -41,7 +32,7 @@ export interface ItemDefinition {
   type: ItemType;
   name: string;
   description: string;
-  category: 'structures' | 'landscaping' | 'infrastructure';
+  category: string; // Allow flexible categories
   size?: ItemSize;
   defaultDimensions: {
     width: number;
