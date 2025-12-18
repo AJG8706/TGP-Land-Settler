@@ -19,6 +19,11 @@ interface CameraSettings {
   rotationSpeed: number;
   keyRotationSpeed: number;
 
+  // Pitch/Tilt settings
+  tiltSpeed: number;
+  minPitch: number;
+  maxPitch: number;
+
   // Boundaries
   minX: number;
   maxX: number;
@@ -39,6 +44,9 @@ const defaultSettings: CameraSettings = {
   maxHeight: 80,
   rotationSpeed: 2,
   keyRotationSpeed: 60,
+  tiltSpeed: 30,
+  minPitch: 20, // Looking more down (top-down view)
+  maxPitch: 60, // Looking more horizontal
   minX: -60,
   maxX: 60,
   minZ: -60,
@@ -58,6 +66,8 @@ export const RTSCameraController = () => {
   const currentPosition = useRef(new Vector3(0, 30, 0));
   const targetRotation = useRef(0);
   const currentRotation = useRef(0);
+  const targetPitch = useRef(35); // Camera pitch angle in degrees
+  const currentPitch = useRef(35);
 
   // Input state
   const mousePosition = useRef({ x: 0, y: 0 });
@@ -251,6 +261,22 @@ export const RTSCameraController = () => {
       targetRotation.current += settings.current.keyRotationSpeed * delta * (Math.PI / 180);
     }
 
+    // 4b. Pitch/Tilt with R/F or PageUp/PageDown keys
+    if (keysPressed.current.has('r') || keysPressed.current.has('pageup')) {
+      // Tilt up (more horizontal view)
+      targetPitch.current += settings.current.tiltSpeed * delta;
+    }
+    if (keysPressed.current.has('f') || keysPressed.current.has('pagedown')) {
+      // Tilt down (more top-down view)
+      targetPitch.current -= settings.current.tiltSpeed * delta;
+    }
+
+    // Clamp pitch
+    targetPitch.current = Math.max(
+      settings.current.minPitch,
+      Math.min(settings.current.maxPitch, targetPitch.current)
+    );
+
     // 5. Boundary enforcement
     targetPosition.current.x = Math.max(
       settings.current.minX,
@@ -264,16 +290,20 @@ export const RTSCameraController = () => {
     // 6. Smooth interpolation
     currentPosition.current.lerp(targetPosition.current, settings.current.smoothSpeed * delta);
     currentRotation.current += (targetRotation.current - currentRotation.current) * settings.current.smoothSpeed * delta;
+    currentPitch.current += (targetPitch.current - currentPitch.current) * settings.current.smoothSpeed * delta;
 
     // 7. Apply to camera
-    const distance = 42; // Distance from look-at point
-    const height = currentPosition.current.y;
-    const angle = Math.PI / 6; // 30 degree angle looking down
+    const distance = 50; // Distance from look-at point
+    const pitchRad = (currentPitch.current * Math.PI) / 180; // Convert pitch to radians
+
+    // Calculate camera position based on pitch and rotation
+    const horizontalDistance = distance * Math.cos(pitchRad);
+    const verticalOffset = distance * Math.sin(pitchRad);
 
     camera.position.set(
-      currentPosition.current.x + distance * Math.sin(currentRotation.current) * Math.cos(angle),
-      height,
-      currentPosition.current.z + distance * Math.cos(currentRotation.current) * Math.cos(angle)
+      currentPosition.current.x + horizontalDistance * Math.sin(currentRotation.current),
+      currentPosition.current.y + verticalOffset,
+      currentPosition.current.z + horizontalDistance * Math.cos(currentRotation.current)
     );
 
     camera.lookAt(currentPosition.current);

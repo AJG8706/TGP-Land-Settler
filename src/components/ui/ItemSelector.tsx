@@ -160,14 +160,21 @@ export const ItemSelector = () => {
 
       {/* Instructions */}
       <div className="instructions">
-        <h3>How to Use:</h3>
+        <h3>Placement:</h3>
         <ul>
           <li>Trees: Click to place group of 4-5</li>
           <li>Lines: Click & drag to draw path</li>
           <li>Others: Click to place at center</li>
           <li>Right-click & drag to rotate</li>
-          <li>Drag item to move it</li>
-          <li>Double-click to delete</li>
+          <li>Double-click item to delete</li>
+        </ul>
+        <h3 style={{marginTop: '12px'}}>Camera:</h3>
+        <ul>
+          <li>Q/E: Rotate left/right</li>
+          <li>R/F: Tilt up/down</li>
+          <li>WASD or edges: Pan</li>
+          <li>Middle-click drag: Pan</li>
+          <li>Scroll: Zoom</li>
         </ul>
       </div>
     </div>
