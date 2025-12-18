@@ -88,9 +88,12 @@ export const PlacementPreview = () => {
     const point = intersects[0].point;
     const terrainHeight = getTerrainHeight(point.x, point.z);
 
+    // Add small offset to prevent z-fighting with terrain
+    const heightWithOffset = terrainHeight + 0.05;
+
     const worldPos = snapEnabled
-      ? snapToGrid({ x: point.x, y: terrainHeight, z: point.z })
-      : { x: point.x, y: terrainHeight, z: point.z };
+      ? snapToGrid({ x: point.x, y: heightWithOffset, z: point.z })
+      : { x: point.x, y: heightWithOffset, z: point.z };
 
     return new Vector3(worldPos.x, worldPos.y, worldPos.z);
   };
@@ -101,8 +104,9 @@ export const PlacementPreview = () => {
 
     const { depth } = definition.defaultDimensions;
 
-    // Use the depth as the segment length (the "long" dimension)
-    const segmentLength = depth;
+    // Use smaller segment length for better terrain following
+    // Cap at 2 units max for smoother terrain conformity
+    const segmentLength = Math.min(depth, 2);
 
     // Calculate direction and distance
     const direction = new Vector3().subVectors(end, start);
@@ -115,20 +119,21 @@ export const PlacementPreview = () => {
     // Calculate rotation angle based on direction
     const angle = Math.atan2(direction.x, direction.z);
 
-    // Calculate number of segments
-    const numSegments = Math.max(1, Math.floor(distance / segmentLength));
+    // Calculate number of segments - use ceil to ensure complete coverage
+    const numSegments = Math.max(1, Math.ceil(distance / segmentLength));
 
     // Generate segment positions
     const segments: LineSegment[] = [];
     for (let i = 0; i < numSegments; i++) {
       const t = i / numSegments;
+      const x = start.x + direction.x * distance * t;
+      const z = start.z + direction.z * distance * t;
+      const terrainHeight = getTerrainHeight(x, z);
+
       const segmentPos = new Vector3(
-        start.x + direction.x * distance * t,
-        getTerrainHeight(
-          start.x + direction.x * distance * t,
-          start.z + direction.z * distance * t
-        ),
-        start.z + direction.z * distance * t
+        x,
+        terrainHeight + 0.05, // Slightly above terrain to prevent z-fighting
+        z
       );
 
       segments.push({
@@ -159,7 +164,7 @@ export const PlacementPreview = () => {
 
       const treeX = centerPos.x + offsetX;
       const treeZ = centerPos.z + offsetZ;
-      const treeY = getTerrainHeight(treeX, treeZ);
+      const treeY = getTerrainHeight(treeX, treeZ) + 0.05; // Slightly above terrain
 
       // Height variation: 80% to 120% of original height
       const heightVariation = 0.8 + Math.random() * 0.4;

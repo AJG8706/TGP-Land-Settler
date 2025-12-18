@@ -93,7 +93,10 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
           );
         }
 
-        const newPos = new Vector3(point.x, terrainHeight, point.z);
+        // Add small offset to prevent z-fighting with terrain
+        const heightWithOffset = terrainHeight + 0.05;
+
+        const newPos = new Vector3(point.x, heightWithOffset, point.z);
 
         // Check for overlap
         const overlapping = checkOverlap(newPos);
@@ -104,7 +107,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
           updatePlacedItem(item.id, {
             position: {
               x: newPos.x,
-              y: terrainHeight,
+              y: heightWithOffset,
               z: newPos.z,
             },
           });

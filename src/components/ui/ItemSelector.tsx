@@ -39,11 +39,14 @@ export const ItemSelector = () => {
       );
     }
 
+    // Add small offset to prevent z-fighting with terrain
+    const heightWithOffset = terrainHeight + 0.05;
+
     // Create new item at center of map with correct vertical position
     const newItem = {
       id: generateId(),
       type: type,
-      position: { x: 0, y: terrainHeight, z: 0 },
+      position: { x: 0, y: heightWithOffset, z: 0 },
       rotation: { x: 0, y: 0, z: 0 },
       size: selectedSize || undefined,
       color: definition.color,
