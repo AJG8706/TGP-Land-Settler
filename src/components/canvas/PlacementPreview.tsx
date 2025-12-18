@@ -17,6 +17,9 @@ export const PlacementPreview = () => {
   const [position, setPosition] = useState<Vector3>(new Vector3(0, 0, 0));
   const [isValid, setIsValid] = useState(true);
   const [rotation, setRotation] = useState(0);
+  const [isRotating, setIsRotating] = useState(false);
+  const [rotationStartX, setRotationStartX] = useState(0);
+  const [rotationStart, setRotationStart] = useState(0);
 
   // Line drawing state
   const [isDragging, setIsDragging] = useState(false);
@@ -41,7 +44,9 @@ export const PlacementPreview = () => {
   const isLineDrawableItem = definition && (
     definition.type === 'fence' ||
     definition.type === 'driveway' ||
-    definition.type === 'road'
+    definition.type === 'road' ||
+    definition.type === 'creek' ||
+    definition.type.includes('stream')
   );
 
   // Check if current item is a tree/bush that should be placed in groups
@@ -173,6 +178,14 @@ export const PlacementPreview = () => {
     const handleMouseMove = (event: MouseEvent) => {
       if (!isPlacementMode || !definition) return;
 
+      // Handle rotation
+      if (isRotating) {
+        const deltaX = event.clientX - rotationStartX;
+        const newRotation = rotationStart + (deltaX * 0.01); // Adjust sensitivity
+        setRotation(newRotation);
+        return;
+      }
+
       const worldPos = getWorldPosition(event);
       if (!worldPos) return;
 
@@ -194,15 +207,27 @@ export const PlacementPreview = () => {
 
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isPlacementMode, definition, isDragging, dragStartPos, camera, raycaster, scene, terrainHeightMap, snapEnabled, isLineDrawableItem, isTreeGroupItem]);
+  }, [isPlacementMode, definition, isDragging, dragStartPos, camera, raycaster, scene, terrainHeightMap, snapEnabled, isLineDrawableItem, isTreeGroupItem, isRotating, rotationStartX, rotationStart]);
 
   // Handle mouse down
   useEffect(() => {
     const handleMouseDown = (event: MouseEvent) => {
-      if (!isPlacementMode || !definition || event.button !== 0) return;
+      if (!isPlacementMode || !definition) return;
 
       const canvas = document.querySelector('canvas');
       if (!canvas || event.target !== canvas) return;
+
+      // Right-click for rotation
+      if (event.button === 2) {
+        event.preventDefault();
+        setIsRotating(true);
+        setRotationStartX(event.clientX);
+        setRotationStart(rotation);
+        return;
+      }
+
+      // Left-click for placement/line drawing
+      if (event.button !== 0) return;
 
       const worldPos = getWorldPosition(event);
       if (!worldPos) return;
@@ -217,12 +242,18 @@ export const PlacementPreview = () => {
 
     window.addEventListener('mousedown', handleMouseDown);
     return () => window.removeEventListener('mousedown', handleMouseDown);
-  }, [isPlacementMode, definition, camera, raycaster, scene, terrainHeightMap, snapEnabled, isLineDrawableItem]);
+  }, [isPlacementMode, definition, camera, raycaster, scene, terrainHeightMap, snapEnabled, isLineDrawableItem, rotation]);
 
   // Handle mouse up
   useEffect(() => {
-    const handleMouseUp = () => {
+    const handleMouseUp = (event: MouseEvent) => {
       if (!isPlacementMode || !definition) return;
+
+      // Stop rotation on right-click release
+      if (event.button === 2) {
+        setIsRotating(false);
+        return;
+      }
 
       if (isDragging && dragStartPos && isLineDrawableItem) {
         // Place all line segments
@@ -295,32 +326,40 @@ export const PlacementPreview = () => {
     treeGroupPreview,
   ]);
 
+  // Prevent context menu on right-click
+  useEffect(() => {
+    const handleContextMenu = (event: MouseEvent) => {
+      if (!isPlacementMode) return;
+      const canvas = document.querySelector('canvas');
+      if (canvas && event.target === canvas) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+    return () => window.removeEventListener('contextmenu', handleContextMenu);
+  }, [isPlacementMode]);
+
   // Handle keyboard
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isPlacementMode) return;
 
       switch (event.key) {
-        case 'r':
-        case 'R':
-          if (!isLineDrawableItem) {
-            // Rotate 90 degrees
-            setRotation((prev) => prev + Math.PI / 2);
-          }
-          break;
         case 'Escape':
           // Cancel placement
           setPlacementMode(false);
           setIsDragging(false);
           setDragStartPos(null);
           setLineSegments([]);
+          setIsRotating(false);
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlacementMode, setPlacementMode, isLineDrawableItem]);
+  }, [isPlacementMode, setPlacementMode]);
 
   if (!isPlacementMode || !definition) return null;
 
@@ -402,26 +441,47 @@ export const PlacementPreview = () => {
   }
 
   // Render single item preview
+  const isPond = selectedItemType?.includes('pond');
+
   return (
     <group
       ref={meshRef}
       position={[position.x, position.y + height / 2, position.z]}
       rotation={[0, rotation, 0]}
     >
-      <mesh>
-        <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial
-          color={isValid ? definition.color : '#FF0000'}
-          opacity={0.5}
-          transparent
-        />
-      </mesh>
-
-      {/* Outline */}
-      <mesh>
-        <boxGeometry args={[width + 0.1, height + 0.1, depth + 0.1]} />
-        <meshBasicMaterial color="#FFFFFF" wireframe />
-      </mesh>
+      {isPond ? (
+        <>
+          <mesh>
+            <cylinderGeometry args={[Math.max(width, depth) / 2, Math.max(width, depth) / 2, height, 32]} />
+            <meshStandardMaterial
+              color={isValid ? definition.color : '#FF0000'}
+              opacity={0.5}
+              transparent
+            />
+          </mesh>
+          {/* Outline */}
+          <mesh>
+            <cylinderGeometry args={[Math.max(width, depth) / 2 + 0.1, Math.max(width, depth) / 2 + 0.1, height + 0.1, 32]} />
+            <meshBasicMaterial color="#FFFFFF" wireframe />
+          </mesh>
+        </>
+      ) : (
+        <>
+          <mesh>
+            <boxGeometry args={[width, height, depth]} />
+            <meshStandardMaterial
+              color={isValid ? definition.color : '#FF0000'}
+              opacity={0.5}
+              transparent
+            />
+          </mesh>
+          {/* Outline */}
+          <mesh>
+            <boxGeometry args={[width + 0.1, height + 0.1, depth + 0.1]} />
+            <meshBasicMaterial color="#FFFFFF" wireframe />
+          </mesh>
+        </>
+      )}
     </group>
   );
 };

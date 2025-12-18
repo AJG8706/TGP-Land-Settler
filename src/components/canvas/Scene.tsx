@@ -187,6 +187,7 @@ export const Scene = () => {
           enableRotate={true}
           minDistance={20}
           maxDistance={120}
+          minPolarAngle={0}
           maxPolarAngle={Math.PI / 2.1}
         />
       </Canvas>

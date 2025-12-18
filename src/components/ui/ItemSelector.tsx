@@ -143,6 +143,7 @@ export const ItemSelector = () => {
         <ul>
           <li>Click item to place at center</li>
           <li>Drag arrows to move</li>
+          <li>Right-click & drag to rotate</li>
           <li>Click item to select/deselect</li>
           <li>Double-click to delete</li>
           <li>Use camera angles in toolbar</li>

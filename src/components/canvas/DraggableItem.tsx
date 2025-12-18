@@ -154,6 +154,17 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
     const itemColor = isOverlapping ? '#FF0000' : color;
     const opacity = isDragging ? 0.7 : 1;
 
+    // Check if it's a pond type
+    if (item.type.includes('pond')) {
+      const radius = Math.max(width, depth) / 2; // Use the larger dimension for radius
+      return (
+        <mesh>
+          <cylinderGeometry args={[radius, radius, height, 32]} />
+          <meshStandardMaterial color={itemColor} opacity={opacity} transparent={isDragging} />
+        </mesh>
+      );
+    }
+
     switch (item.type) {
       case 'tree':
         return (

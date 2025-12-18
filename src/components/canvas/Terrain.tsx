@@ -133,6 +133,16 @@ export const Terrain = () => {
         />
       </mesh>
 
+      {/* Brown earth block underneath the terrain */}
+      <mesh position={[0, -10, 0]} receiveShadow castShadow>
+        <boxGeometry args={[terrainSize.width, 20, terrainSize.depth]} />
+        <meshStandardMaterial
+          color="#5C4033"
+          roughness={0.9}
+          metalness={0.1}
+        />
+      </mesh>
+
       {/* Grid helper */}
       {gridVisible && (
         <Grid
