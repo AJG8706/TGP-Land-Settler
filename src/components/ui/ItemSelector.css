@@ -49,19 +49,39 @@
   padding: 12px 16px;
   border-bottom: 1px solid #e0e0e0;
   background: #f8f8f8;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: #4CAF50 #e0e0e0;
+}
+
+.category-tabs::-webkit-scrollbar {
+  height: 6px;
+}
+
+.category-tabs::-webkit-scrollbar-track {
+  background: #e0e0e0;
+  border-radius: 3px;
+}
+
+.category-tabs::-webkit-scrollbar-thumb {
+  background: #4CAF50;
+  border-radius: 3px;
 }
 
 .category-tab {
-  flex: 1;
+  flex-shrink: 0;
   padding: 8px 12px;
   background: white;
   border: 1px solid #ddd;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #666;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .category-tab:hover {

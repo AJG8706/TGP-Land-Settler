@@ -1,20 +1,23 @@
 import { useState } from 'react';
 import { useLandStore } from '../../store/useLandStore';
-import { getItemsByCategory, getItemDefinition } from '../../data/items';
+import { getItemsByCategory, getItemDefinition, getAllCategories } from '../../data/items';
 import { generateId } from '../../utils/helpers';
+import { getHeightAtPosition } from '../../utils/noise';
 import type { ItemType, ItemSize } from '../../types';
 import './ItemSelector.css';
 
 export const ItemSelector = () => {
-  const [activeCategory, setActiveCategory] = useState<string>('structures');
+  const [activeCategory, setActiveCategory] = useState<string>('housing');
   const [selectedSize, setSelectedSize] = useState<ItemSize | null>(null);
 
   const selectedItemType = useLandStore((state) => state.selectedItemType);
   const setSelectedItemType = useLandStore((state) => state.setSelectedItemType);
   const setSelectedSizeStore = useLandStore((state) => state.setSelectedSize);
   const isPlacementMode = useLandStore((state) => state.isPlacementMode);
+  const terrainHeightMap = useLandStore((state) => state.terrainHeightMap);
 
-  const categories = ['structures', 'landscaping', 'infrastructure'];
+  // Get all available categories from items
+  const categories = getAllCategories();
 
   const addPlacedItem = useLandStore((state) => state.addPlacedItem);
   const setSelectedItemId = useLandStore((state) => state.setSelectedItemId);
@@ -23,11 +26,24 @@ export const ItemSelector = () => {
     const definition = getItemDefinition(type);
     if (!definition) return;
 
-    // Create new item at center of map
+    // Get terrain height at center of map
+    let terrainHeight = 0;
+    if (terrainHeightMap) {
+      terrainHeight = getHeightAtPosition(
+        terrainHeightMap,
+        0, // x: center
+        0, // z: center
+        100, // terrainWidth
+        100, // terrainDepth
+        10   // maxHeight
+      );
+    }
+
+    // Create new item at center of map with correct vertical position
     const newItem = {
       id: generateId(),
       type: type,
-      position: { x: 0, y: 0, z: 0 },
+      position: { x: 0, y: terrainHeight, z: 0 },
       rotation: { x: 0, y: 0, z: 0 },
       size: selectedSize || undefined,
       color: definition.color,
@@ -67,13 +83,13 @@ export const ItemSelector = () => {
             className={`category-tab ${activeCategory === category ? 'active' : ''}`}
             onClick={() => setActiveCategory(category)}
           >
-            {category.charAt(0).toUpperCase() + category.slice(1)}
+            {category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, ' ')}
           </button>
         ))}
       </div>
 
       {/* Size selector for houses */}
-      {activeCategory === 'structures' && (
+      {activeCategory === 'housing' && (
         <div className="size-selector">
           <label>Size:</label>
           <div className="size-buttons">
