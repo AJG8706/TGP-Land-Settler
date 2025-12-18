@@ -30,7 +30,12 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
   const definition = getItemDefinition(item.type);
   if (!definition) return null;
 
-  const { width, height, depth } = definition.defaultDimensions;
+  // Apply scale if provided (for tree variations, etc.)
+  const scale = item.scale || 1;
+  const { width: baseWidth, height: baseHeight, depth: baseDepth } = definition.defaultDimensions;
+  const width = baseWidth * scale;
+  const height = baseHeight * scale;
+  const depth = baseDepth * scale;
   const color = item.color || definition.color;
 
   // Check for overlaps with other items

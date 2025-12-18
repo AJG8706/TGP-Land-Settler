@@ -23,6 +23,9 @@ export const PlacementPreview = () => {
   const [dragStartPos, setDragStartPos] = useState<Vector3 | null>(null);
   const [lineSegments, setLineSegments] = useState<LineSegment[]>([]);
 
+  // Tree group state
+  const [treeGroupPreview, setTreeGroupPreview] = useState<Array<{ position: Vector3; heightVariation: number }>>([]);
+
   const { camera, raycaster, scene } = useThree();
   const selectedItemType = useLandStore((state) => state.selectedItemType);
   const selectedSize = useLandStore((state) => state.selectedSize);
@@ -39,6 +42,12 @@ export const PlacementPreview = () => {
     definition.type === 'fence' ||
     definition.type === 'driveway' ||
     definition.type === 'road'
+  );
+
+  // Check if current item is a tree/bush that should be placed in groups
+  const isTreeGroupItem = definition && (
+    definition.type === 'tree' ||
+    definition.category === 'trees'
   );
 
   // Get terrain height at position
@@ -126,6 +135,39 @@ export const PlacementPreview = () => {
     return segments;
   };
 
+  // Generate tree group positions with variations
+  const generateTreeGroup = (centerPos: Vector3): Array<{ position: Vector3; heightVariation: number }> => {
+    if (!definition) return [];
+
+    // Random number of trees in group (3-7)
+    const treeCount = Math.floor(Math.random() * 5) + 3;
+
+    const trees: Array<{ position: Vector3; heightVariation: number }> = [];
+
+    for (let i = 0; i < treeCount; i++) {
+      // Generate random offset from center (0-5 units radius)
+      const angle = (Math.random() * Math.PI * 2);
+      const radius = Math.random() * 5 + 1; // 1-6 units from center
+
+      const offsetX = Math.cos(angle) * radius;
+      const offsetZ = Math.sin(angle) * radius;
+
+      const treeX = centerPos.x + offsetX;
+      const treeZ = centerPos.z + offsetZ;
+      const treeY = getTerrainHeight(treeX, treeZ);
+
+      // Height variation: 80% to 120% of original height
+      const heightVariation = 0.8 + Math.random() * 0.4;
+
+      trees.push({
+        position: new Vector3(treeX, treeY, treeZ),
+        heightVariation,
+      });
+    }
+
+    return trees;
+  };
+
   // Handle mouse movement
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -142,11 +184,17 @@ export const PlacementPreview = () => {
         const segments = calculateLineSegments(dragStartPos, worldPos);
         setLineSegments(segments);
       }
+
+      // Generate tree group preview when hovering
+      if (isTreeGroupItem) {
+        const treeGroup = generateTreeGroup(worldPos);
+        setTreeGroupPreview(treeGroup);
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isPlacementMode, definition, isDragging, dragStartPos, camera, raycaster, scene, terrainHeightMap, snapEnabled, isLineDrawableItem]);
+  }, [isPlacementMode, definition, isDragging, dragStartPos, camera, raycaster, scene, terrainHeightMap, snapEnabled, isLineDrawableItem, isTreeGroupItem]);
 
   // Handle mouse down
   useEffect(() => {
@@ -196,6 +244,25 @@ export const PlacementPreview = () => {
         setIsDragging(false);
         setDragStartPos(null);
         setLineSegments([]);
+      } else if (isTreeGroupItem) {
+        // Place tree group with variations
+        if (treeGroupPreview.length > 0) {
+          treeGroupPreview.forEach((tree) => {
+            const newItem: PlacedItem = {
+              id: generateId(),
+              type: selectedItemType!,
+              position: { x: tree.position.x, y: tree.position.y, z: tree.position.z },
+              rotation: { x: 0, y: Math.random() * Math.PI * 2, z: 0 }, // Random rotation for each tree
+              size: selectedSize || undefined,
+              color: definition.color,
+              scale: tree.heightVariation, // Apply height variation as scale
+            };
+            addPlacedItem(newItem);
+          });
+        }
+        // Generate new preview for next placement
+        const treeGroup = generateTreeGroup(position);
+        setTreeGroupPreview(treeGroup);
       } else if (!isLineDrawableItem) {
         // Single click placement for regular items
         const newItem: PlacedItem = {
@@ -224,6 +291,8 @@ export const PlacementPreview = () => {
     selectedSize,
     addPlacedItem,
     isLineDrawableItem,
+    isTreeGroupItem,
+    treeGroupPreview,
   ]);
 
   // Handle keyboard
@@ -288,6 +357,46 @@ export const PlacementPreview = () => {
             <meshBasicMaterial color="#00FF00" />
           </mesh>
         )}
+      </>
+    );
+  }
+
+  // Render tree group preview
+  if (isTreeGroupItem && treeGroupPreview.length > 0) {
+    return (
+      <>
+        {treeGroupPreview.map((tree, index) => {
+          const scaledHeight = height * tree.heightVariation;
+          const scaledWidth = width * tree.heightVariation;
+          const scaledDepth = depth * tree.heightVariation;
+
+          return (
+            <group
+              key={index}
+              position={[tree.position.x, tree.position.y + scaledHeight / 2, tree.position.z]}
+              rotation={[0, Math.random() * Math.PI * 2, 0]}
+            >
+              <mesh>
+                <boxGeometry args={[scaledWidth, scaledHeight, scaledDepth]} />
+                <meshStandardMaterial
+                  color={definition.color}
+                  opacity={0.5}
+                  transparent
+                />
+              </mesh>
+              {/* Outline */}
+              <mesh>
+                <boxGeometry args={[scaledWidth + 0.1, scaledHeight + 0.1, scaledDepth + 0.1]} />
+                <meshBasicMaterial color="#FFFFFF" wireframe />
+              </mesh>
+            </group>
+          );
+        })}
+        {/* Show center point */}
+        <mesh position={[position.x, position.y + 0.5, position.z]}>
+          <sphereGeometry args={[0.3, 16, 16]} />
+          <meshBasicMaterial color="#4CAF50" />
+        </mesh>
       </>
     );
   }

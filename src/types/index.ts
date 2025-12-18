@@ -24,6 +24,7 @@ export interface PlacedItem {
   rotation: Rotation;
   size?: ItemSize;
   color?: string;
+  scale?: number; // For size variations (e.g., tree height variations)
   metadata?: Record<string, any>;
 }
 
