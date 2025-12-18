@@ -4,6 +4,7 @@ import { useThree } from '@react-three/fiber';
 import { useLandStore } from '../../store/useLandStore';
 import { getItemDefinition } from '../../data/items';
 import { snapToGrid, generateId } from '../../utils/helpers';
+import { getHeightAtPosition } from '../../utils/noise';
 import type { PlacedItem } from '../../types';
 
 export const PlacementPreview = () => {
@@ -19,6 +20,7 @@ export const PlacementPreview = () => {
   const snapEnabled = useLandStore((state) => state.snapToGrid);
   const addPlacedItem = useLandStore((state) => state.addPlacedItem);
   const setPlacementMode = useLandStore((state) => state.setPlacementMode);
+  const terrainHeightMap = useLandStore((state) => state.terrainHeightMap);
 
   const definition = selectedItemType ? getItemDefinition(selectedItemType) : null;
 
@@ -45,9 +47,23 @@ export const PlacementPreview = () => {
 
       if (intersects.length > 0) {
         const point = intersects[0].point;
+
+        // Get terrain height at this position
+        let terrainHeight = 0;
+        if (terrainHeightMap) {
+          terrainHeight = getHeightAtPosition(
+            terrainHeightMap,
+            point.x,
+            point.z,
+            100, // terrainWidth
+            100, // terrainDepth
+            10   // maxHeight
+          );
+        }
+
         const newPos = snapEnabled
-          ? snapToGrid({ x: point.x, y: 0, z: point.z })
-          : { x: point.x, y: 0, z: point.z };
+          ? snapToGrid({ x: point.x, y: terrainHeight, z: point.z })
+          : { x: point.x, y: terrainHeight, z: point.z };
 
         setPosition(new Vector3(newPos.x, newPos.y, newPos.z));
         setIsValid(true);
@@ -61,7 +77,7 @@ export const PlacementPreview = () => {
       const newItem: PlacedItem = {
         id: generateId(),
         type: selectedItemType!,
-        position: { x: position.x, y: 0, z: position.z },
+        position: { x: position.x, y: position.y, z: position.z },
         rotation: { x: 0, y: rotation, z: 0 },
         size: selectedSize || undefined,
         color: definition.color,
@@ -108,6 +124,7 @@ export const PlacementPreview = () => {
     raycaster,
     addPlacedItem,
     setPlacementMode,
+    terrainHeightMap,
   ]);
 
   if (!isPlacementMode || !definition) return null;

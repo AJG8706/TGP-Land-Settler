@@ -21,17 +21,27 @@ export const Toolbar = () => {
   const importLayout = useLandStore((state) => state.importLayout);
   const clearPlacedItems = useLandStore((state) => state.clearPlacedItems);
 
-  const handleRotate = () => {
+  const handleRotationChange = (degrees: number) => {
     if (!selectedItemId) return;
-    const item = placedItems.find((i) => i.id === selectedItemId);
-    if (!item) return;
 
     updatePlacedItem(selectedItemId, {
       rotation: {
-        ...item.rotation,
-        y: item.rotation.y + (15 * Math.PI) / 180, // 15 degree increments
+        x: 0,
+        y: (degrees * Math.PI) / 180, // Convert degrees to radians
+        z: 0,
       },
     });
+  };
+
+  const getSelectedItemRotation = (): number => {
+    if (!selectedItemId) return 0;
+    const item = placedItems.find((i) => i.id === selectedItemId);
+    if (!item) return 0;
+
+    // Convert radians to degrees
+    const degrees = (item.rotation.y * 180) / Math.PI;
+    // Normalize to 0-360
+    return ((degrees % 360) + 360) % 360;
   };
 
   const handleSave = () => {
@@ -102,14 +112,22 @@ export const Toolbar = () => {
 
         <div className="toolbar-section">
           <h3>Item Control</h3>
-          <button
-            className="toolbar-btn"
-            onClick={handleRotate}
-            disabled={!selectedItemId}
-            title="Rotate selected item 90°"
-          >
-            🔄 Rotate
-          </button>
+          <div className="rotation-control">
+            <label htmlFor="rotation-slider">
+              🔄 Rotation: <strong>{Math.round(getSelectedItemRotation())}°</strong>
+            </label>
+            <input
+              id="rotation-slider"
+              type="range"
+              min="0"
+              max="360"
+              step="15"
+              value={getSelectedItemRotation()}
+              onChange={(e) => handleRotationChange(Number(e.target.value))}
+              disabled={!selectedItemId}
+              className="rotation-slider"
+            />
+          </div>
         </div>
 
         <div className="toolbar-section">

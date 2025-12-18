@@ -135,6 +135,7 @@ const GroundClickHandler = () => {
 
 export const Scene = () => {
   const placedItems = useLandStore((state) => state.placedItems);
+  const isDraggingItem = useLandStore((state) => state.isDraggingItem);
 
   return (
     <div style={{ width: '100%', height: '100vh' }}>
@@ -178,8 +179,9 @@ export const Scene = () => {
         {/* Ground click handler */}
         <GroundClickHandler />
 
-        {/* Camera controls */}
+        {/* Camera controls - disabled during item dragging */}
         <OrbitControls
+          enabled={!isDraggingItem}
           enablePan={true}
           enableZoom={false}
           enableRotate={true}
