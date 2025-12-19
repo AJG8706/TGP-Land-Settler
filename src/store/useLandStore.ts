@@ -189,12 +189,13 @@ export const useLandStore = create<LandStore>((set, get) => ({
     const isStream = item.type.includes('creek') || item.type.includes('stream');
 
     if (isPond) {
-      // Create pond depression with retention hills
-      const pondRadius = Math.ceil(10 / cellSize); // ~10 units radius
-      const retentionRadius = Math.ceil(15 / cellSize); // Hill radius
+      // Create subtle pond depression with gentle retention hills
+      const pondRadius = Math.ceil(7 / cellSize); // Pond radius
+      const retentionRadius = Math.ceil(10 / cellSize); // Retention hill radius
+      const blendRadius = Math.ceil(14 / cellSize); // Smooth blending radius
 
-      for (let z = Math.max(0, centerGridZ - retentionRadius); z < Math.min(resolution, centerGridZ + retentionRadius); z++) {
-        for (let x = Math.max(0, centerGridX - retentionRadius); x < Math.min(resolution, centerGridX + retentionRadius); x++) {
+      for (let z = Math.max(0, centerGridZ - blendRadius); z < Math.min(resolution, centerGridZ + blendRadius); z++) {
+        for (let x = Math.max(0, centerGridX - blendRadius); x < Math.min(resolution, centerGridX + blendRadius); x++) {
           const dx = x - centerGridX;
           const dz = z - centerGridZ;
           const distance = Math.sqrt(dx * dx + dz * dz);
@@ -204,36 +205,49 @@ export const useLandStore = create<LandStore>((set, get) => ({
           modification.affectedCells.push({ x, z });
 
           if (distance < pondRadius) {
-            // Inside pond - create depression
-            const depthFactor = 1 - (distance / pondRadius);
-            const depression = 2 * depthFactor; // 2 units deep at center
+            // Inside pond - create gentle depression with smooth cosine falloff
+            const depthFactor = Math.cos((distance / pondRadius) * Math.PI * 0.5);
+            const depression = 0.6 * depthFactor; // 0.6 units deep at center
             heightMap[z][x] = Math.max(0, heightMap[z][x] - depression);
           } else if (distance < retentionRadius) {
-            // Retention hill around pond
-            const hillFactor = (distance - pondRadius) / (retentionRadius - pondRadius);
-            const hillHeight = 0.8 * (1 - hillFactor); // 0.8 units high at inner edge
+            // Retention hill - very subtle with sine curve
+            const hillPosition = (distance - pondRadius) / (retentionRadius - pondRadius);
+            const hillHeight = 0.25 * Math.sin(hillPosition * Math.PI); // 0.25 units max
             heightMap[z][x] = heightMap[z][x] + hillHeight;
+          } else if (distance < blendRadius) {
+            // Smooth blending zone
+            const blendPosition = (distance - retentionRadius) / (blendRadius - retentionRadius);
+            const blendFactor = Math.cos(blendPosition * Math.PI * 0.5);
+            const blendHeight = 0.1 * blendFactor;
+            heightMap[z][x] = heightMap[z][x] + blendHeight;
           }
         }
       }
     } else if (isStream) {
-      // Create stream channel
-      const channelWidth = Math.ceil(3 / cellSize); // 3 units wide
-      const channelDepth = 1.0; // 1 unit deep
+      // Create stream channel - narrower and more subtle
+      const channelHalfWidth = Math.ceil(1.5 / cellSize); // 1.5 units half-width
+      const channelDepth = 0.4; // 0.4 unit deep
+      const blendWidth = Math.ceil(3 / cellSize); // Blend zone
 
-      for (let z = Math.max(0, centerGridZ - channelWidth); z < Math.min(resolution, centerGridZ + channelWidth); z++) {
-        for (let x = Math.max(0, centerGridX - channelWidth); x < Math.min(resolution, centerGridX + channelWidth); x++) {
+      for (let z = Math.max(0, centerGridZ - blendWidth); z < Math.min(resolution, centerGridZ + blendWidth); z++) {
+        for (let x = Math.max(0, centerGridX - blendWidth); x < Math.min(resolution, centerGridX + blendWidth); x++) {
           const dz = Math.abs(z - centerGridZ);
 
           const key = `${x},${z}`;
           modification.originalHeights.set(key, heightMap[z][x]);
           modification.affectedCells.push({ x, z });
 
-          if (dz < channelWidth) {
-            // Create channel depression
-            const depthFactor = 1 - (dz / channelWidth);
+          if (dz < channelHalfWidth) {
+            // Create smooth channel depression with cosine falloff
+            const depthFactor = Math.cos((dz / channelHalfWidth) * Math.PI * 0.5);
             const depression = channelDepth * depthFactor;
             heightMap[z][x] = Math.max(0, heightMap[z][x] - depression);
+          } else if (dz < blendWidth) {
+            // Smooth blending
+            const blendPosition = (dz - channelHalfWidth) / (blendWidth - channelHalfWidth);
+            const blendFactor = Math.cos(blendPosition * Math.PI * 0.5);
+            const blendDepth = channelDepth * 0.2 * blendFactor;
+            heightMap[z][x] = Math.max(0, heightMap[z][x] - blendDepth);
           }
         }
       }
