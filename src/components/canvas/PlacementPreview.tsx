@@ -93,7 +93,7 @@ export const PlacementPreview = () => {
     const isFlatItem = selectedItemType?.includes('road') ||
                        selectedItemType?.includes('driveway') ||
                        selectedItemType?.includes('pond');
-    const heightWithOffset = terrainHeight + (isFlatItem ? 0.5 : 0.05);
+    const heightWithOffset = terrainHeight + (isFlatItem ? 1.0 : 0.05);
 
     const worldPos = snapEnabled
       ? snapToGrid({ x: point.x, y: heightWithOffset, z: point.z })
@@ -131,20 +131,35 @@ export const PlacementPreview = () => {
     const isFlatItem = definition.type.includes('road') ||
                        definition.type.includes('driveway') ||
                        definition.type.includes('pond');
-    const heightOffset = isFlatItem ? 0.5 : 0.05;
+    const heightOffset = isFlatItem ? 1.0 : 0.05;
 
     // Generate segment positions - space them at exact segmentLength intervals
+    // Sample terrain at multiple points for smoother transitions
     const segments: LineSegment[] = [];
     for (let i = 0; i < numSegments; i++) {
-      const distanceAlongLine = i * segmentLength + segmentLength / 2;
-      const x = start.x + direction.x * distanceAlongLine;
-      const z = start.z + direction.z * distanceAlongLine;
-      const terrainHeight = getTerrainHeight(x, z);
+      const startDist = i * segmentLength;
+      const centerDist = startDist + segmentLength / 2;
+      const endDist = startDist + segmentLength;
+
+      // Sample terrain at start, center, and end of segment
+      const startX = start.x + direction.x * startDist;
+      const startZ = start.z + direction.z * startDist;
+      const centerX = start.x + direction.x * centerDist;
+      const centerZ = start.z + direction.z * centerDist;
+      const endX = start.x + direction.x * endDist;
+      const endZ = start.z + direction.z * endDist;
+
+      const startHeight = getTerrainHeight(startX, startZ);
+      const centerHeight = getTerrainHeight(centerX, centerZ);
+      const endHeight = getTerrainHeight(endX, endZ);
+
+      // Use average height for smoother transitions
+      const avgHeight = (startHeight + centerHeight + endHeight) / 3;
 
       const segmentPos = new Vector3(
-        x,
-        terrainHeight + heightOffset,
-        z
+        centerX,
+        avgHeight + heightOffset,
+        centerZ
       );
 
       segments.push({

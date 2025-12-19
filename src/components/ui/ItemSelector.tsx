@@ -63,7 +63,7 @@ export const ItemSelector = () => {
     const isFlatItem = type.includes('road') ||
                        type.includes('driveway') ||
                        type.includes('pond');
-    const heightWithOffset = terrainHeight + (isFlatItem ? 0.5 : 0.05);
+    const heightWithOffset = terrainHeight + (isFlatItem ? 1.0 : 0.05);
 
     // Create new item at center of map with correct vertical position
     const newItem = {

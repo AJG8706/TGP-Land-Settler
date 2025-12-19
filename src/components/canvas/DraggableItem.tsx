@@ -98,7 +98,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
         const isFlatItem = item.type.includes('road') ||
                            item.type.includes('driveway') ||
                            item.type.includes('pond');
-        const heightWithOffset = terrainHeight + (isFlatItem ? 0.5 : 0.05);
+        const heightWithOffset = terrainHeight + (isFlatItem ? 1.0 : 0.05);
 
         const newPos = new Vector3(point.x, heightWithOffset, point.z);
 
