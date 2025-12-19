@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Scene } from './components/canvas/Scene';
 import { ItemSelector } from './components/ui/ItemSelector';
 import { Toolbar } from './components/ui/Toolbar';
@@ -5,6 +6,16 @@ import { AdminPortal } from './components/ui/AdminPortal';
 import './App.css';
 
 function App() {
+  // Disable browser context menu globally to allow right-click rotation
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+    return () => window.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
+
   return (
     <div className="app">
       {/* Header */}
