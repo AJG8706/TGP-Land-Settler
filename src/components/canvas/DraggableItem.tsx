@@ -93,8 +93,12 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
           );
         }
 
-        // Add small offset to prevent z-fighting with terrain
-        const heightWithOffset = terrainHeight + 0.05;
+        // Add offset to prevent z-fighting with terrain
+        // Use larger offset for flat items like roads and ponds
+        const isFlatItem = item.type.includes('road') ||
+                           item.type.includes('driveway') ||
+                           item.type.includes('pond');
+        const heightWithOffset = terrainHeight + (isFlatItem ? 0.5 : 0.05);
 
         const newPos = new Vector3(point.x, heightWithOffset, point.z);
 
@@ -226,9 +230,10 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
         );
 
       case 'fence':
+        // For fences, swap width and depth so the fence panel extends along its length
         return (
           <mesh>
-            <boxGeometry args={[width, height, depth]} />
+            <boxGeometry args={[depth, height, width]} />
             <meshStandardMaterial color={itemColor} opacity={opacity} transparent={isDragging} />
           </mesh>
         );

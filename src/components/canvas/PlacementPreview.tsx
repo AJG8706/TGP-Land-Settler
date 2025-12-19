@@ -88,8 +88,12 @@ export const PlacementPreview = () => {
     const point = intersects[0].point;
     const terrainHeight = getTerrainHeight(point.x, point.z);
 
-    // Add small offset to prevent z-fighting with terrain
-    const heightWithOffset = terrainHeight + 0.05;
+    // Add offset to prevent z-fighting with terrain
+    // Use larger offset for flat items like roads and ponds
+    const isFlatItem = selectedItemType?.includes('road') ||
+                       selectedItemType?.includes('driveway') ||
+                       selectedItemType?.includes('pond');
+    const heightWithOffset = terrainHeight + (isFlatItem ? 0.5 : 0.05);
 
     const worldPos = snapEnabled
       ? snapToGrid({ x: point.x, y: heightWithOffset, z: point.z })
@@ -102,11 +106,12 @@ export const PlacementPreview = () => {
   const calculateLineSegments = (start: Vector3, end: Vector3): LineSegment[] => {
     if (!definition) return [];
 
-    const { depth } = definition.defaultDimensions;
+    const { width, depth } = definition.defaultDimensions;
 
-    // Use smaller segment length for better terrain following
-    // Cap at 2 units max for smoother terrain conformity
-    const segmentLength = Math.min(depth, 2);
+    // For fences, use width (the long dimension) instead of depth (thickness)
+    // For roads/driveways, use depth (the length along the path)
+    const isFence = definition.type === 'fence';
+    const segmentLength = isFence ? width : depth;
 
     // Calculate direction and distance
     const direction = new Vector3().subVectors(end, start);
@@ -119,20 +124,26 @@ export const PlacementPreview = () => {
     // Calculate rotation angle based on direction
     const angle = Math.atan2(direction.x, direction.z);
 
-    // Calculate number of segments - use ceil to ensure complete coverage
-    const numSegments = Math.max(1, Math.ceil(distance / segmentLength));
+    // Calculate number of segments - use floor to prevent overlapping
+    const numSegments = Math.max(1, Math.floor(distance / segmentLength));
 
-    // Generate segment positions
+    // Check if this is a flat item needing higher offset
+    const isFlatItem = definition.type.includes('road') ||
+                       definition.type.includes('driveway') ||
+                       definition.type.includes('pond');
+    const heightOffset = isFlatItem ? 0.5 : 0.05;
+
+    // Generate segment positions - space them at exact segmentLength intervals
     const segments: LineSegment[] = [];
     for (let i = 0; i < numSegments; i++) {
-      const t = i / numSegments;
-      const x = start.x + direction.x * distance * t;
-      const z = start.z + direction.z * distance * t;
+      const distanceAlongLine = i * segmentLength + segmentLength / 2;
+      const x = start.x + direction.x * distanceAlongLine;
+      const z = start.z + direction.z * distanceAlongLine;
       const terrainHeight = getTerrainHeight(x, z);
 
       const segmentPos = new Vector3(
         x,
-        terrainHeight + 0.05, // Slightly above terrain to prevent z-fighting
+        terrainHeight + heightOffset,
         z
       );
 
@@ -372,6 +383,11 @@ export const PlacementPreview = () => {
 
   // Render line segments preview
   if (isLineDrawableItem && isDragging && lineSegments.length > 0) {
+    // For fences, swap width and depth so the fence panel extends along the line
+    const isFence = definition.type === 'fence';
+    const renderWidth = isFence ? depth : width;
+    const renderDepth = isFence ? width : depth;
+
     return (
       <>
         {lineSegments.map((segment, index) => (
@@ -381,7 +397,7 @@ export const PlacementPreview = () => {
             rotation={[0, segment.rotation, 0]}
           >
             <mesh>
-              <boxGeometry args={[width, height, depth]} />
+              <boxGeometry args={[renderWidth, height, renderDepth]} />
               <meshStandardMaterial
                 color={definition.color}
                 opacity={0.6}
@@ -389,7 +405,7 @@ export const PlacementPreview = () => {
               />
             </mesh>
             <mesh>
-              <boxGeometry args={[width + 0.1, height + 0.1, depth + 0.1]} />
+              <boxGeometry args={[renderWidth + 0.1, height + 0.1, renderDepth + 0.1]} />
               <meshBasicMaterial color="#FFFFFF" wireframe />
             </mesh>
           </group>
