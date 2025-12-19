@@ -208,16 +208,16 @@ export const RTSCameraController = () => {
     const keyMovement = new Vector3();
 
     if (keysPressed.current.has('w') || keysPressed.current.has('arrowup')) {
-      keyMovement.z -= 1;
-    }
-    if (keysPressed.current.has('s') || keysPressed.current.has('arrowdown')) {
       keyMovement.z += 1;
     }
+    if (keysPressed.current.has('s') || keysPressed.current.has('arrowdown')) {
+      keyMovement.z -= 1;
+    }
     if (keysPressed.current.has('a') || keysPressed.current.has('arrowleft')) {
-      keyMovement.x -= 1;
+      keyMovement.x += 1;
     }
     if (keysPressed.current.has('d') || keysPressed.current.has('arrowright')) {
-      keyMovement.x += 1;
+      keyMovement.x -= 1;
     }
 
     if (keyMovement.length() > 0) {
