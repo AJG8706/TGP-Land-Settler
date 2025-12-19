@@ -37,6 +37,7 @@ export const PlacementPreview = () => {
   const addPlacedItem = useLandStore((state) => state.addPlacedItem);
   const setPlacementMode = useLandStore((state) => state.setPlacementMode);
   const terrainHeightMap = useLandStore((state) => state.terrainHeightMap);
+  const modifyTerrainForWaterFeature = useLandStore((state) => state.modifyTerrainForWaterFeature);
 
   const definition = selectedItemType ? getItemDefinition(selectedItemType) : null;
 
@@ -289,6 +290,9 @@ export const PlacementPreview = () => {
       if (isDragging && dragStartPos && isLineDrawableItem) {
         // Place all line segments
         if (lineSegments.length > 0) {
+          const isWaterFeature = selectedItemType?.includes('creek') ||
+                                 selectedItemType?.includes('stream');
+
           lineSegments.forEach((segment) => {
             const newItem: PlacedItem = {
               id: generateId(),
@@ -299,6 +303,11 @@ export const PlacementPreview = () => {
               color: definition.color,
             };
             addPlacedItem(newItem);
+
+            // Modify terrain if this is a water feature
+            if (isWaterFeature) {
+              modifyTerrainForWaterFeature(newItem);
+            }
           });
         }
 

@@ -2,11 +2,20 @@ import { create } from 'zustand';
 import type { AppState, PlacedItem, ItemType, ItemSize, LandLayout } from '../types';
 import { generateTerrainHeightMap, smoothHeightMap } from '../utils/noise';
 
+// Track terrain modifications for each water feature
+interface TerrainModification {
+  itemId: string;
+  originalHeights: Map<string, number>; // key: "x,z", value: original height
+  affectedCells: Array<{ x: number; z: number }>;
+}
+
 interface LandStore extends AppState {
   // Selection state
   selectedItemId: string | null;
   cameraAngle: 10 | 30 | 45;
   terrainHeightMap: number[][] | null;
+  originalTerrainHeightMap: number[][] | null; // Store original before modifications
+  terrainModifications: Map<string, TerrainModification>; // itemId -> modification
   isDraggingItem: boolean;
 
   // Actions for item placement
@@ -38,6 +47,8 @@ interface LandStore extends AppState {
     persistence?: number,
     lacunarity?: number
   ) => void;
+  modifyTerrainForWaterFeature: (item: PlacedItem) => void;
+  restoreTerrainForWaterFeature: (itemId: string) => void;
 
   // Actions for layout management
   saveLayout: (name: string) => void;
@@ -63,6 +74,8 @@ export const useLandStore = create<LandStore>((set, get) => ({
   gridVisible: true,
   snapToGrid: true,
   terrainHeightMap: null,
+  originalTerrainHeightMap: null,
+  terrainModifications: new Map(),
   isDraggingItem: false,
 
   // Item selection actions
@@ -146,7 +159,121 @@ export const useLandStore = create<LandStore>((set, get) => ({
     // Smooth for natural flow
     const smoothed = smoothHeightMap(heightMap, 2);
 
-    set({ terrainHeightMap: smoothed });
+    set({
+      terrainHeightMap: smoothed,
+      originalTerrainHeightMap: smoothed.map(row => [...row]) // Deep copy
+    });
+  },
+
+  modifyTerrainForWaterFeature: (item) => {
+    const state = get();
+    if (!state.terrainHeightMap) return;
+
+    const heightMap = state.terrainHeightMap.map(row => [...row]);
+    const resolution = heightMap.length;
+    const worldSize = 100; // Map size
+    const cellSize = worldSize / resolution;
+
+    // Convert world position to grid coordinates
+    const centerGridX = Math.floor((item.position.x + worldSize / 2) / cellSize);
+    const centerGridZ = Math.floor((item.position.z + worldSize / 2) / cellSize);
+
+    const modification: TerrainModification = {
+      itemId: item.id,
+      originalHeights: new Map(),
+      affectedCells: [],
+    };
+
+    // Determine modification type based on item
+    const isPond = item.type.includes('pond');
+    const isStream = item.type.includes('creek') || item.type.includes('stream');
+
+    if (isPond) {
+      // Create pond depression with retention hills
+      const pondRadius = Math.ceil(10 / cellSize); // ~10 units radius
+      const retentionRadius = Math.ceil(15 / cellSize); // Hill radius
+
+      for (let z = Math.max(0, centerGridZ - retentionRadius); z < Math.min(resolution, centerGridZ + retentionRadius); z++) {
+        for (let x = Math.max(0, centerGridX - retentionRadius); x < Math.min(resolution, centerGridX + retentionRadius); x++) {
+          const dx = x - centerGridX;
+          const dz = z - centerGridZ;
+          const distance = Math.sqrt(dx * dx + dz * dz);
+
+          const key = `${x},${z}`;
+          modification.originalHeights.set(key, heightMap[z][x]);
+          modification.affectedCells.push({ x, z });
+
+          if (distance < pondRadius) {
+            // Inside pond - create depression
+            const depthFactor = 1 - (distance / pondRadius);
+            const depression = 2 * depthFactor; // 2 units deep at center
+            heightMap[z][x] = Math.max(0, heightMap[z][x] - depression);
+          } else if (distance < retentionRadius) {
+            // Retention hill around pond
+            const hillFactor = (distance - pondRadius) / (retentionRadius - pondRadius);
+            const hillHeight = 0.8 * (1 - hillFactor); // 0.8 units high at inner edge
+            heightMap[z][x] = heightMap[z][x] + hillHeight;
+          }
+        }
+      }
+    } else if (isStream) {
+      // Create stream channel
+      const channelWidth = Math.ceil(3 / cellSize); // 3 units wide
+      const channelDepth = 1.0; // 1 unit deep
+
+      for (let z = Math.max(0, centerGridZ - channelWidth); z < Math.min(resolution, centerGridZ + channelWidth); z++) {
+        for (let x = Math.max(0, centerGridX - channelWidth); x < Math.min(resolution, centerGridX + channelWidth); x++) {
+          const dz = Math.abs(z - centerGridZ);
+
+          const key = `${x},${z}`;
+          modification.originalHeights.set(key, heightMap[z][x]);
+          modification.affectedCells.push({ x, z });
+
+          if (dz < channelWidth) {
+            // Create channel depression
+            const depthFactor = 1 - (dz / channelWidth);
+            const depression = channelDepth * depthFactor;
+            heightMap[z][x] = Math.max(0, heightMap[z][x] - depression);
+          }
+        }
+      }
+    }
+
+    // Store modification and update heightmap
+    const modifications = new Map(state.terrainModifications);
+    modifications.set(item.id, modification);
+
+    set({
+      terrainHeightMap: heightMap,
+      terrainModifications: modifications
+    });
+  },
+
+  restoreTerrainForWaterFeature: (itemId) => {
+    const state = get();
+    if (!state.terrainHeightMap) return;
+
+    const modification = state.terrainModifications.get(itemId);
+    if (!modification) return;
+
+    const heightMap = state.terrainHeightMap.map(row => [...row]);
+
+    // Restore original heights
+    modification.originalHeights.forEach((originalHeight, key) => {
+      const [x, z] = key.split(',').map(Number);
+      if (z < heightMap.length && x < heightMap[0].length) {
+        heightMap[z][x] = originalHeight;
+      }
+    });
+
+    // Remove modification tracking
+    const modifications = new Map(state.terrainModifications);
+    modifications.delete(itemId);
+
+    set({
+      terrainHeightMap: heightMap,
+      terrainModifications: modifications
+    });
   },
 
   // Layout management

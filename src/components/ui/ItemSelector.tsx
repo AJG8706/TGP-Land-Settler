@@ -121,6 +121,7 @@ export const ItemSelector = () => {
   const categories = getAllCategories();
   const addPlacedItem = useLandStore((state) => state.addPlacedItem);
   const setSelectedItemId = useLandStore((state) => state.setSelectedItemId);
+  const modifyTerrainForWaterFeature = useLandStore((state) => state.modifyTerrainForWaterFeature);
 
   const handleItemSelect = (type: ItemType) => {
     const definition = getItemDefinition(type);
@@ -170,6 +171,14 @@ export const ItemSelector = () => {
 
     addPlacedItem(newItem);
     setSelectedItemId(newItem.id);
+
+    // Modify terrain if this is a water feature
+    const isWaterFeature = type.includes('pond') ||
+                           type.includes('creek') ||
+                           type.includes('stream');
+    if (isWaterFeature) {
+      modifyTerrainForWaterFeature(newItem);
+    }
   };
 
   const handleSizeSelect = (size: ItemSize) => {
