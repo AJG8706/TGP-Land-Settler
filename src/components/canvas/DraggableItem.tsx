@@ -30,8 +30,6 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
   const placedItems = useLandStore((state) => state.placedItems);
   const terrainHeightMap = useLandStore((state) => state.terrainHeightMap);
   const setIsDraggingItem = useLandStore((state) => state.setIsDraggingItem);
-  const modifyTerrainForWaterFeature = useLandStore((state) => state.modifyTerrainForWaterFeature);
-  const restoreTerrainForWaterFeature = useLandStore((state) => state.restoreTerrainForWaterFeature);
   const adjustItemElevationToCorners = useLandStore((state) => state.adjustItemElevationToCorners);
 
   const isSelected = selectedItemId === item.id;
@@ -152,19 +150,8 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
         return;
       }
 
-      // If this was a water feature that was moved, update terrain
+      // Adjust elevation based on corner heights after dragging
       if (isDragging) {
-        const isWaterFeature = item.type.includes('pond') ||
-                               item.type.includes('creek') ||
-                               item.type.includes('stream');
-        if (isWaterFeature) {
-          // Restore terrain at old position
-          restoreTerrainForWaterFeature(item.id);
-          // Modify terrain at new position
-          modifyTerrainForWaterFeature(item);
-        }
-
-        // Adjust elevation based on corner heights
         adjustItemElevationToCorners(item.id);
       }
 
@@ -180,7 +167,7 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isRotating, rotationStartX, rotationStart, item, updatePlacedItem, camera, scene, gl, placedItems, terrainHeightMap, modifyTerrainForWaterFeature, restoreTerrainForWaterFeature]);
+  }, [isDragging, isRotating, rotationStartX, rotationStart, item, updatePlacedItem, adjustItemElevationToCorners, camera, scene, gl, placedItems, terrainHeightMap]);
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
@@ -212,14 +199,6 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
   const handleDoubleClick = (e: any) => {
     e.stopPropagation();
     if (window.confirm(`Delete ${definition.name}?`)) {
-      // Restore terrain if this is a water feature
-      const isWaterFeature = item.type.includes('pond') ||
-                             item.type.includes('creek') ||
-                             item.type.includes('stream');
-      if (isWaterFeature) {
-        restoreTerrainForWaterFeature(item.id);
-      }
-
       removePlacedItem(item.id);
       setSelectedItemId(null);
     }
