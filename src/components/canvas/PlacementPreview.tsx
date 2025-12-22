@@ -38,6 +38,7 @@ export const PlacementPreview = () => {
   const setPlacementMode = useLandStore((state) => state.setPlacementMode);
   const terrainHeightMap = useLandStore((state) => state.terrainHeightMap);
   const modifyTerrainForWaterFeature = useLandStore((state) => state.modifyTerrainForWaterFeature);
+  const adjustItemElevationToCorners = useLandStore((state) => state.adjustItemElevationToCorners);
 
   const definition = selectedItemType ? getItemDefinition(selectedItemType) : null;
 
@@ -308,6 +309,9 @@ export const PlacementPreview = () => {
             if (isWaterFeature) {
               modifyTerrainForWaterFeature(newItem);
             }
+
+            // Adjust elevation to match corner heights
+            adjustItemElevationToCorners(newItem.id);
           });
         }
 
@@ -329,6 +333,9 @@ export const PlacementPreview = () => {
               scale: tree.heightVariation, // Apply height variation as scale
             };
             addPlacedItem(newItem);
+
+            // Adjust elevation to match corner heights
+            adjustItemElevationToCorners(newItem.id);
           });
         }
         // Generate new preview for next placement
@@ -345,6 +352,9 @@ export const PlacementPreview = () => {
           color: definition.color,
         };
         addPlacedItem(newItem);
+
+        // Adjust elevation to match corner heights
+        adjustItemElevationToCorners(newItem.id);
       }
     };
 
@@ -364,6 +374,8 @@ export const PlacementPreview = () => {
     isLineDrawableItem,
     isTreeGroupItem,
     treeGroupPreview,
+    modifyTerrainForWaterFeature,
+    adjustItemElevationToCorners,
   ]);
 
   // Prevent context menu on right-click

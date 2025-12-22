@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AppState, PlacedItem, ItemType, ItemSize, LandLayout } from '../types';
-import { generateTerrainHeightMap, smoothHeightMap } from '../utils/noise';
+import { generateTerrainHeightMap, smoothHeightMap, getHeightAtPosition } from '../utils/noise';
+import { getItemDefinition } from '../data/items';
 
 // Track terrain modifications for each water feature
 interface TerrainModification {
@@ -49,6 +50,7 @@ interface LandStore extends AppState {
   ) => void;
   modifyTerrainForWaterFeature: (item: PlacedItem) => void;
   restoreTerrainForWaterFeature: (itemId: string) => void;
+  adjustItemElevationToCorners: (itemId: string) => void;
 
   // Actions for layout management
   saveLayout: (name: string) => void;
@@ -288,6 +290,71 @@ export const useLandStore = create<LandStore>((set, get) => ({
       terrainHeightMap: heightMap,
       terrainModifications: modifications
     });
+  },
+
+  adjustItemElevationToCorners: (itemId) => {
+    const state = get();
+    const item = state.placedItems.find(i => i.id === itemId);
+    if (!item || !state.terrainHeightMap) return;
+
+    // Get item definition to determine dimensions
+    const definition = getItemDefinition(item.type);
+    if (!definition) return;
+
+    // Apply scale if provided
+    const scale = item.scale || 1;
+    const width = definition.defaultDimensions.width * scale;
+    const depth = definition.defaultDimensions.depth * scale;
+
+    const halfWidth = width / 2;
+    const halfDepth = depth / 2;
+    const rotation = item.rotation.y;
+
+    // Calculate the 4 corners of the object in world space
+    const corners = [
+      { x: -halfWidth, z: -halfDepth }, // Front-left
+      { x: halfWidth, z: -halfDepth },  // Front-right
+      { x: -halfWidth, z: halfDepth },  // Back-left
+      { x: halfWidth, z: halfDepth },   // Back-right
+    ];
+
+    // Rotate corners based on object rotation
+    const rotatedCorners = corners.map(corner => {
+      const cos = Math.cos(rotation);
+      const sin = Math.sin(rotation);
+      return {
+        x: item.position.x + (corner.x * cos - corner.z * sin),
+        z: item.position.z + (corner.x * sin + corner.z * cos),
+      };
+    });
+
+    // Get terrain height at each corner
+    const cornerHeights = rotatedCorners.map(corner => {
+      return getHeightAtPosition(
+        state.terrainHeightMap!,
+        corner.x,
+        corner.z,
+        100, // terrainWidth
+        100, // terrainDepth
+        10   // maxHeight
+      );
+    });
+
+    // Calculate average height
+    const avgHeight = cornerHeights.reduce((sum, h) => sum + h, 0) / cornerHeights.length;
+
+    // Add offset to prevent z-fighting with terrain
+    const isFlatItem = item.type.includes('road') ||
+                       item.type.includes('driveway') ||
+                       item.type.includes('pond');
+    const heightWithOffset = avgHeight + (isFlatItem ? 1.0 : 0.05);
+
+    // Update item position with adjusted elevation
+    set((state) => ({
+      placedItems: state.placedItems.map((i) =>
+        i.id === itemId ? { ...i, position: { ...i.position, y: heightWithOffset } } : i
+      ),
+    }));
   },
 
   // Layout management
