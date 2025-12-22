@@ -1,10 +1,13 @@
 import { useRef, useState, useEffect } from 'react';
-import { Mesh, Vector3, Raycaster, Vector2, CircleGeometry } from 'three';
+import { Mesh, Vector3, Raycaster, Vector2 } from 'three';
 import { useThree } from '@react-three/fiber';
 import type { PlacedItem } from '../../types';
 import { useLandStore } from '../../store/useLandStore';
 import { getItemDefinition } from '../../data/items';
 import { getHeightAtPosition } from '../../utils/noise';
+import { DetailedHouse } from './items/DetailedHouse';
+import { DetailedTree } from './items/DetailedTree';
+import { DetailedPond } from './items/DetailedPond';
 
 interface DraggableItemProps {
   item: PlacedItem;
@@ -222,79 +225,55 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
     }
   };
 
-  // Create terrain-following pond geometry
-  const createTerrainFollowingPondGeometry = () => {
-    const radius = Math.max(width, depth) / 2;
-    const segments = 32; // Radial segments for smooth circle
-    const rings = 8; // Concentric rings for terrain following
-
-    // Create circle geometry
-    const geometry = new CircleGeometry(radius, segments, rings);
-    const positions = geometry.attributes.position;
-
-    // Adjust each vertex height based on terrain
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      const z = positions.getY(i); // In CircleGeometry, Y is actually Z in world space
-
-      // Calculate world position
-      const worldX = item.position.x + x;
-      const worldZ = item.position.z + z;
-
-      // Get terrain height at this point
-      let terrainHeight = 0;
-      if (terrainHeightMap) {
-        terrainHeight = getHeightAtPosition(
-          terrainHeightMap,
-          worldX,
-          worldZ,
-          100, // terrainWidth
-          100, // terrainDepth
-          10   // maxHeight
-        );
-      }
-
-      // Set the Z position (which becomes Y in world space when rotated)
-      // Offset by item position Y and add small lift to prevent z-fighting
-      const relativeHeight = terrainHeight - item.position.y + height / 2 + 0.05;
-      positions.setZ(i, relativeHeight);
-    }
-
-    positions.needsUpdate = true;
-    geometry.computeVertexNormals();
-    return geometry;
-  };
-
   // Render different shapes based on item type
   const renderGeometry = () => {
     const itemColor = isOverlapping ? '#FF0000' : color;
     const opacity = isDragging ? 0.7 : 1;
 
-    // Check if it's a pond type - use terrain-following geometry
+    // Check if it's a pond type - use detailed pond component
     if (item.type.includes('pond')) {
-      const pondGeometry = createTerrainFollowingPondGeometry();
       return (
-        <mesh geometry={pondGeometry} rotation={[-Math.PI / 2, 0, 0]}>
-          <meshStandardMaterial color={itemColor} opacity={opacity} transparent={isDragging} />
-        </mesh>
+        <DetailedPond
+          item={item}
+          width={width}
+          height={height}
+          depth={depth}
+          isDragging={isDragging}
+          isOverlapping={isOverlapping}
+          terrainHeightMap={terrainHeightMap}
+        />
+      );
+    }
+
+    // Check if it's a tree - use detailed tree component
+    if (item.type === 'tree' || item.type.includes('tree')) {
+      return (
+        <DetailedTree
+          width={width}
+          height={height}
+          scale={scale}
+          color={itemColor}
+          isDragging={isDragging}
+          isOverlapping={isOverlapping}
+        />
+      );
+    }
+
+    // Check if it's a house - use detailed house component
+    if (item.type.includes('house') || item.type.includes('home') || item.type.includes('rv')) {
+      return (
+        <DetailedHouse
+          width={width}
+          height={height}
+          depth={depth}
+          color={itemColor}
+          isDragging={isDragging}
+          isOverlapping={isOverlapping}
+        />
       );
     }
 
     switch (item.type) {
-      case 'tree':
-        return (
-          <group>
-            <mesh position={[0, height / 4, 0]}>
-              <cylinderGeometry args={[0.2, 0.4, height / 2]} />
-              <meshStandardMaterial color="#8B4513" opacity={opacity} transparent={isDragging} />
-            </mesh>
-            <mesh position={[0, height * 0.65, 0]}>
-              <coneGeometry args={[width / 2, height / 2, 8]} />
-              <meshStandardMaterial color={itemColor} opacity={opacity} transparent={isDragging} />
-            </mesh>
-          </group>
-        );
-
       case 'fence':
         // For fences, swap width and depth so the fence panel extends along its length
         return (
@@ -322,18 +301,10 @@ export const DraggableItem = ({ item }: DraggableItemProps) => {
 
       default:
         return (
-          <>
-            <mesh castShadow>
-              <boxGeometry args={[width, height, depth]} />
-              <meshStandardMaterial color={itemColor} opacity={opacity} transparent={isDragging} />
-            </mesh>
-            {item.type.includes('house') && (
-              <mesh position={[0, height / 2 + 0.5, 0]} castShadow>
-                <coneGeometry args={[width * 0.7, height * 0.4, 4]} />
-                <meshStandardMaterial color={isOverlapping ? '#FF0000' : '#8B0000'} opacity={opacity} transparent={isDragging} />
-              </mesh>
-            )}
-          </>
+          <mesh castShadow>
+            <boxGeometry args={[width, height, depth]} />
+            <meshStandardMaterial color={itemColor} opacity={opacity} transparent={isDragging} />
+          </mesh>
         );
     }
   };
